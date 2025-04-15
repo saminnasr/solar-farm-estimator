@@ -14,6 +14,23 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Solar Farm Estimator", layout="centered")
 st.title("🔆 Solar Farm Energy Estimator")
 
+
+st.markdown("""
+### ☀️ Welcome to the Solar Farm Energy Estimator App
+This tool helps you explore how **row spacing** and **panel layout** impact total energy production in a solar farm.
+
+🔧 Enter your design parameters below, adjust the spacing range, and analyze how it affects:
+- Number of rows and total panels
+- Ground Coverage Ratio (GCR)
+- Shading losses based on solar geometry
+- Total energy output (using live irradiance data from PVGIS)
+
+📈 You'll also see a dynamic chart to compare scenarios and an engineering summary at the end.
+
+---
+""")
+
+
 # ----------------------------- USER INPUTS -----------------------------
 st.header("🧮 Input Parameters")
 
