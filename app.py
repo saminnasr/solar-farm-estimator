@@ -32,7 +32,7 @@ This tool helps you explore how **row spacing** and **panel layout** impact tota
 
 ---
 """)
-with st.expander("❓ Help / How to Use This App"):
+with st.expander("❓ How to Use This App"):
     st.markdown("""
     This app helps you simulate and optimize solar farm layout and performance. Here's what each section does:
 
