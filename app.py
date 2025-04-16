@@ -5,6 +5,7 @@
 # for a fixed-size solar farm based on user input (location, tilt, row spacing, panel dimensions).
 # Irradiance data is pulled live from PVGIS (https://re.jrc.ec.europa.eu/pvg_tools/en/#TMY) and results are visualized.
 
+
 import streamlit as st
 import requests
 import math
@@ -14,6 +15,7 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Solar Farm Estimator", layout="centered")
 st.title("🔆 Solar Farm Energy Estimator")
 
+# ----------------------------- INTRO SECTION -----------------------------
 
 st.markdown("""
 ### ☀️ Welcome to the Solar Farm Energy Estimator App
@@ -30,9 +32,30 @@ This tool helps you explore how **row spacing** and **panel layout** impact tota
 ---
 """)
 
+with st.expander("❓ How to Use This App"):
+    st.markdown("""
+    This app helps you simulate and optimize solar farm layout and performance. Here's what each section does:
 
-# ----------------------------- USER INPUTS -----------------------------
+    - **📦 Table Structure**: Define how many panels are installed per mounting table, and how many mounts are used in each row.
+    - **🔧 System Configuration**: Set technical parameters like panel power, optional override for total panels.
+    - **🧮 Input Parameters**: Site-specific data like location, tilt, panel dimensions, and layout.
+    - **📐 Row Spacing Range**: Define the minimum and maximum row spacing to analyze different design scenarios.
+    - **📊 Output Summary**: See the result for the exact spacing you enter, including total panels, system capacity, shading loss, and energy yield.
+    - **📈 Chart**: Visual comparison of how row spacing affects energy production and panel count.
+
+    👉 Use this tool to compare design options, understand trade-offs, and support layout decisions.
+    """)
+    
+    
 st.header("🧮 Input Parameters")
+
+st.subheader("🔧 System Configuration")
+
+st.subheader("📦 Table Structure")
+panels_per_mount = st.number_input("Number of Panels per Table (Mount)", value=10, step=1)
+mounts_per_row = st.number_input("Number of Mounts per Row", value=5, step=1)
+panel_capacity_kw = st.number_input("Panel Capacity (kW per panel)", value=0.55, step=0.01, format="%.2f")
+user_defined_panels = st.number_input("Override Total Number of Panels (optional)", value=0, step=1)
 
 col1, col2 = st.columns(2)
 with col1:
@@ -132,16 +155,32 @@ for spacing in row_spacings:
 
 st.header("📊 Output Summary for Selected Spacing")
 
-selected_spacing = st.slider("Select Row Spacing (m)", min_value=int(min_spacing), max_value=int(max_spacing), value=int(min_spacing))
-match = next((item for item in spacing_results if item[0] == selected_spacing), None)
-if match:
-    gcr_selected = panel_width / match[0]
-    shading_selected = estimate_shading_loss(match[0], shadow_len)
-    st.write(f"✅ GCR: {gcr_selected:.2f}")
-    st.write(f"✅ Shading Loss: {shading_selected * 100:.1f}%")
-    st.write(f"✅ Row Spacing: {match[0]} m")
-    st.write(f"✅ Total Panels: {match[1]}")
-    st.write(f"⚡ Total Energy Output: {match[2]:,.0f} kWh/year")
+
+selected_spacing = st.number_input(
+    "Enter Exact Row Spacing (m)",
+    min_value=min_spacing,
+    max_value=max_spacing,
+    value=min_spacing,
+    step=0.01,
+    format="%.2f"
+)
+
+# Compute row count, panel count and energy for the exact user input spacing
+rows_possible_exact = math.floor(land_length / selected_spacing)
+panel_spacing_width = panel_width + panel_gap
+panels_per_row_exact = mounts_per_row * panels_per_mount
+total_panels_exact = int(user_defined_panels) if user_defined_panels > 0 else panels_per_row_exact * rows_possible_exact
+shading_selected = estimate_shading_loss(selected_spacing, shadow_len)
+yield_per_panel_exact = irradiance * pr * (1 - shading_selected)
+total_energy_exact = yield_per_panel_exact * total_panels_exact
+system_capacity_kw = total_panels_exact * panel_capacity_kw
+gcr_selected = panel_width / selected_spacing if spacing_results else None
+st.write(f"✅ GCR: {gcr_selected:.2f}")
+st.write(f"✅ Shading Loss: {shading_selected * 100:.1f}%")
+st.write(f"✅ Row Spacing: {selected_spacing:.2f} m")
+st.write(f"✅ Total Panels: {total_panels_exact}")
+st.write(f"⚡ System Capacity: {system_capacity_kw:.2f} kW")
+st.write(f"⚡ Total Energy Output: {total_energy_exact:,.0f} kWh/year")
 
 # ----------------------------- PLOT -----------------------------
 st.header("📈 Energy vs. Row Spacing")
