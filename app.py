@@ -32,7 +32,7 @@ This tool helps you explore how **row spacing** and **panel layout** impact tota
 
 ---
 """)
-with st.expander("❓ How to Use This App"):
+with st.expander("❓ Help / How to Use This App"):
     st.markdown("""
     This app helps you simulate and optimize solar farm layout and performance. Here's what each section does:
 
@@ -86,8 +86,8 @@ def get_irradiance_from_pvgis(lat):
 def critical_solar_angle(lat):
     return 90 - lat + 23.45
 
-def shadow_length(tilt_deg, panel_len, theta_deg):
-    effective_height = panel_len * math.sin(math.radians(tilt_deg))
+def shadow_length(panel_tilt, panel_len, theta_deg):
+    effective_height = panel_len * math.sin(math.radians(panel_tilt))
     return effective_height / math.tan(math.radians(theta_deg))
 
 def estimate_shading_loss(spacing, shadow):
