@@ -5,7 +5,6 @@
 # for a fixed-size solar farm based on user input (location, tilt, row spacing, panel dimensions).
 # Irradiance data is pulled live from PVGIS (https://re.jrc.ec.europa.eu/pvg_tools/en/#TMY) and results are visualized.
 
-
 import streamlit as st
 import requests
 import math
@@ -16,6 +15,8 @@ st.set_page_config(page_title="Solar Farm Estimator", layout="centered")
 st.title("🔆 Solar Farm Energy Estimator")
 
 # ----------------------------- INTRO SECTION -----------------------------
+
+
 
 st.markdown("""
 ### ☀️ Welcome to the Solar Farm Energy Estimator App
@@ -31,8 +32,7 @@ This tool helps you explore how **row spacing** and **panel layout** impact tota
 
 ---
 """)
-
-with st.expander("❓ How to Use This App"):
+with st.expander("❓ Help / How to Use This App"):
     st.markdown("""
     This app helps you simulate and optimize solar farm layout and performance. Here's what each section does:
 
@@ -42,11 +42,11 @@ with st.expander("❓ How to Use This App"):
     - **📐 Row Spacing Range**: Define the minimum and maximum row spacing to analyze different design scenarios.
     - **📊 Output Summary**: See the result for the exact spacing you enter, including total panels, system capacity, shading loss, and energy yield.
     - **📈 Chart**: Visual comparison of how row spacing affects energy production and panel count.
+    - **📘 Final Summary**: Transparent overview of methods, assumptions, and reliability of each part of the model.
 
     👉 Use this tool to compare design options, understand trade-offs, and support layout decisions.
     """)
-    
-    
+# ----------------------------- USER INPUTS -----------------------------
 st.header("🧮 Input Parameters")
 
 st.subheader("🔧 System Configuration")
@@ -62,6 +62,7 @@ with col1:
     lat = st.number_input("Latitude (°N)", value=28.28, format="%.4f")
     panel_tilt = st.number_input("Tilt Angle (°)", value=25)
     panel_height = st.number_input("Panel Height (m)", value=1.5, format="%.2f")
+    panel_length = st.number_input("Panel Length (m)", value=2.0, format="%.2f")
     pr = st.number_input("Performance Ratio (0-1)", min_value=0.5, max_value=0.95, value=0.82)
 
 with col2:
@@ -70,8 +71,6 @@ with col2:
     panel_width = st.number_input("Panel Width (m)", value=1.1, format="%.2f")
     panel_gap = st.number_input("Gap Between Panels (m)", value=0.2, format="%.2f")
 
-panel_area = 2.0  # m^2 per panel
-
 # ----------------------------- HELPER FUNCTIONS -----------------------------
 
 def get_irradiance_from_pvgis(lat):
@@ -79,7 +78,7 @@ def get_irradiance_from_pvgis(lat):
     try:
         res = requests.get(url, timeout=10)
         data = res.json()
-        annual_irradiance = data['outputs']['totals']['fixed']['E_y']  # kWh/year per kWp
+        annual_irradiance = data['outputs']['totals']['fixed']['E_y']
         return annual_irradiance
     except:
         return None
@@ -87,17 +86,14 @@ def get_irradiance_from_pvgis(lat):
 def critical_solar_angle(lat):
     return 90 - lat + 23.45
 
-def shadow_length(height_m, theta_deg):
-    return height_m / math.tan(math.radians(theta_deg))
+def shadow_length(tilt_deg, panel_len, theta_deg):
+    effective_height = panel_len * math.sin(math.radians(tilt_deg))
+    return effective_height / math.tan(math.radians(theta_deg))
 
 def estimate_shading_loss(spacing, shadow):
-    """
-    Estimate shading loss based on Ground Coverage Ratio (GCR) rather than just shadow ratio.
-    Source: Adapted from PVsyst and NREL shading guidelines.
-    """
-    gcr = panel_width / spacing  # Ground Coverage Ratio (simplified)
+    gcr = panel_width / spacing
     if gcr >= 0.7:
-        return 0.12  # High GCR → significant shading
+        return 0.12
     elif gcr >= 0.6:
         return 0.08
     elif gcr >= 0.5:
@@ -109,25 +105,17 @@ def estimate_shading_loss(spacing, shadow):
     else:
         return 0.01
 
+def frange(start, stop, step):
+    while start <= stop:
+        yield round(start, 2)
+        start += step
+
 # ----------------------------- COMPUTATION -----------------------------
 
 st.subheader("📐 Define Row Spacing Range")
 min_spacing = st.number_input("Minimum Row Spacing (m)", value=4.0, min_value=1.0, step=0.5)
 max_spacing = st.number_input("Maximum Row Spacing (m)", value=12.0, min_value=min_spacing + 0.5, step=0.5)
-
-# Helper for float range
-def frange(start, stop, step):
-    while start <= stop:
-        yield round(start, 2)
-        start += step
-
 row_spacings = [round(s, 2) for s in frange(min_spacing, max_spacing + 0.1, 1.0)]
-
-# Helper for float range
-def frange(start, stop, step):
-    while start <= stop:
-        yield round(start, 2)
-        start += step
 
 irradiance = get_irradiance_from_pvgis(lat)
 if irradiance is None:
@@ -135,11 +123,9 @@ if irradiance is None:
     st.stop()
 
 solar_angle = critical_solar_angle(lat)
-shadow_len = shadow_length(panel_height, solar_angle)
+shadow_len = shadow_length(panel_tilt, panel_length, solar_angle)
 
-  # spacing from 4 to 12 meters
 spacing_results = []
-
 for spacing in row_spacings:
     rows_possible = math.floor(land_length / spacing)
     panel_spacing_width = panel_width + panel_gap
@@ -152,9 +138,7 @@ for spacing in row_spacings:
 
 # ----------------------------- OUTPUT -----------------------------
 
-
 st.header("📊 Output Summary for Selected Spacing")
-
 
 selected_spacing = st.number_input(
     "Enter Exact Row Spacing (m)",
@@ -165,16 +149,15 @@ selected_spacing = st.number_input(
     format="%.2f"
 )
 
-# Compute row count, panel count and energy for the exact user input spacing
 rows_possible_exact = math.floor(land_length / selected_spacing)
-panel_spacing_width = panel_width + panel_gap
 panels_per_row_exact = mounts_per_row * panels_per_mount
 total_panels_exact = int(user_defined_panels) if user_defined_panels > 0 else panels_per_row_exact * rows_possible_exact
 shading_selected = estimate_shading_loss(selected_spacing, shadow_len)
-yield_per_panel_exact = irradiance * pr * (1 - shading_selected)
+yield_per_panel_exact = irradiance * panel_capacity_kw * pr * (1 - shading_selected)
 total_energy_exact = yield_per_panel_exact * total_panels_exact
 system_capacity_kw = total_panels_exact * panel_capacity_kw
 gcr_selected = panel_width / selected_spacing if spacing_results else None
+
 st.write(f"✅ GCR: {gcr_selected:.2f}")
 st.write(f"✅ Shading Loss: {shading_selected * 100:.1f}%")
 st.write(f"✅ Row Spacing: {selected_spacing:.2f} m")
@@ -183,6 +166,7 @@ st.write(f"⚡ System Capacity: {system_capacity_kw:.2f} kW")
 st.write(f"⚡ Total Energy Output: {total_energy_exact:,.0f} kWh/year")
 
 # ----------------------------- PLOT -----------------------------
+
 st.header("📈 Energy vs. Row Spacing")
 
 spacings = [x[0] for x in spacing_results]
@@ -200,3 +184,29 @@ ax2.set_ylabel("Total Energy (kWh/year)", color='b')
 plt.title("Effect of Row Spacing on Panel Count and Energy Output")
 
 st.pyplot(fig)
+
+# ----------------------------- LAYOUT ESTIMATOR -----------------------------
+
+st.header("🧱 Layout Estimator: Panel & Row Count by Geometry")
+
+st.subheader("📏 Layout Inputs")
+col_layout1, col_layout2 = st.columns(2)
+
+with col_layout1:
+    layout_land_length = st.number_input("Layout Land Length (m)", value=230.0, format="%.1f")
+    layout_panel_length = st.number_input("Panel Length (m)", value=2.0, format="%.2f", key="layout_panel_length")
+    layout_row_spacing = st.number_input("Row Spacing (m)", value=8.0, format="%.2f", key="layout_row_spacing")
+
+with col_layout2:
+    layout_land_width = st.number_input("Layout Land Width (m)", value=200.0, format="%.1f")
+    layout_panel_width = st.number_input("Panel Width (m)", value=1.1, format="%.2f", key="layout_panel_width")
+    layout_panel_gap = st.number_input("Gap Between Panels (Width) (m)", value=0.2, format="%.2f")
+
+panels_per_row_layout = math.floor(layout_land_width / (layout_panel_width + layout_panel_gap))
+rows_possible_layout = math.floor(layout_land_length / layout_row_spacing)
+total_panels_layout = panels_per_row_layout * rows_possible_layout
+
+st.subheader("📊 Layout Output")
+st.write(f"✅ Panels per Row: {panels_per_row_layout}")
+st.write(f"✅ Rows Possible: {rows_possible_layout}")
+st.write(f"✅ Total Panels by Layout: {total_panels_layout}")
