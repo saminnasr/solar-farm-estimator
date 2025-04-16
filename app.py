@@ -115,7 +115,7 @@ def frange(start, stop, step):
 st.subheader("📐 Define Row Spacing Range")
 min_spacing = st.number_input("Minimum Row Spacing (m)", value=4.0, min_value=1.0, step=0.5)
 max_spacing = st.number_input("Maximum Row Spacing (m)", value=12.0, min_value=min_spacing + 0.5, step=0.5)
-row_spacings = [round(s, 2) for s in frange(min_spacing, max_spacing + 0.1, 1.0)]
+row_spacings = [round(s, 2) for s in frange(min_spacing, max_spacing + 0.01, 0.1)]
 
 irradiance = get_irradiance_from_pvgis(lat)
 if irradiance is None:
