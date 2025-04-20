@@ -115,7 +115,7 @@ def frange(start, stop, step):
 st.subheader("📐 Define Row Spacing Range")
 min_spacing = st.number_input("Minimum Row Spacing (m)", value=4.0, min_value=1.0, step=0.5)
 max_spacing = st.number_input("Maximum Row Spacing (m)", value=12.0, min_value=min_spacing + 0.5, step=0.5)
-row_spacings = [round(s, 2) for s in frange(min_spacing, max_spacing + 0.01, 0.1)]
+row_spacings = [round(s, 2) for s in frange(min_spacing, max_spacing + 0.1, 1.0)]
 
 irradiance = get_irradiance_from_pvgis(lat)
 if irradiance is None:
@@ -148,7 +148,7 @@ selected_spacing = st.number_input(
     step=0.01,
     format="%.2f"
 )
-
+spacing=selected_spacing
 rows_possible_exact = math.floor(land_length / selected_spacing)
 panels_per_row_exact = mounts_per_row * panels_per_mount
 total_panels_exact = int(user_defined_panels) if user_defined_panels > 0 else panels_per_row_exact * rows_possible_exact
@@ -160,6 +160,7 @@ gcr_selected = panel_width / selected_spacing if spacing_results else None
 
 st.write(f"✅ GCR: {gcr_selected:.2f}")
 st.write(f"✅ Shading Loss: {shading_selected * 100:.1f}%")
+st.write(f"✅ Possible Rows Count: {rows_possible_exact} ")
 st.write(f"✅ Row Spacing: {selected_spacing:.2f} m")
 st.write(f"✅ Total Panels: {total_panels_exact}")
 st.write(f"⚡ System Capacity: {system_capacity_kw:.2f} kW")
