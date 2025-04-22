@@ -109,13 +109,29 @@ def frange(start, stop, step):
     while start <= stop:
         yield round(start, 2)
         start += step
+        
+        
+# ----------------------------- USABLE LAND SETTINGS -----------------------------
+
+st.subheader("🏗️ Land Usable Area Settings")
+
+use_percentage = st.checkbox("Use Usable Land Percentage (%)", value=True)
+use_manual_area = st.checkbox("Or Enter Usable Land Area Directly (m²)")
+
+effective_land_area = land_length * land_width  # Default
+
+if use_percentage:
+    land_usage_percent = st.number_input("Usable Land Percentage (%)", min_value=50, max_value=100, value=90)
+    effective_land_area = (land_length * land_width) * (land_usage_percent / 100)
+elif use_manual_area:
+    effective_land_area = st.number_input("Effective Land Area (m²)", value=int(land_length * land_width * 0.9))
 
 # ----------------------------- COMPUTATION -----------------------------
 
 st.subheader("📐 Define Row Spacing Range")
 min_spacing = st.number_input("Minimum Row Spacing (m)", value=4.0, min_value=1.0, step=0.5)
 max_spacing = st.number_input("Maximum Row Spacing (m)", value=12.0, min_value=min_spacing + 0.5, step=0.5)
-row_spacings = [round(s, 2) for s in frange(min_spacing, max_spacing + 0.1, 1.0)]
+row_spacings = [round(s, 2) for s in frange(min_spacing, max_spacing + 0.01, 0.1)]
 
 irradiance = get_irradiance_from_pvgis(lat)
 if irradiance is None:
@@ -130,7 +146,16 @@ for spacing in row_spacings:
     rows_possible = math.floor(land_length / spacing)
     panel_spacing_width = panel_width + panel_gap
     panels_per_row = math.floor(land_width / panel_spacing_width)
-    total_panels = panels_per_row * rows_possible
+    gross_panels = panels_per_row * rows_possible
+    area_per_panel = spacing * panel_spacing_width
+    total_area_panels = gross_panels * area_per_panel
+
+    if total_area_panels > effective_land_area:
+        correction_factor = effective_land_area / total_area_panels
+        total_panels = int(gross_panels * correction_factor)
+    else:
+        total_panels = gross_panels
+
     shading_loss = estimate_shading_loss(spacing, shadow_len)
     yield_per_panel = irradiance * pr * (1 - shading_loss)
     total_energy = yield_per_panel * total_panels
@@ -148,7 +173,7 @@ selected_spacing = st.number_input(
     step=0.01,
     format="%.2f"
 )
-spacing=selected_spacing
+
 rows_possible_exact = math.floor(land_length / selected_spacing)
 panels_per_row_exact = mounts_per_row * panels_per_mount
 total_panels_exact = int(user_defined_panels) if user_defined_panels > 0 else panels_per_row_exact * rows_possible_exact
@@ -160,7 +185,6 @@ gcr_selected = panel_width / selected_spacing if spacing_results else None
 
 st.write(f"✅ GCR: {gcr_selected:.2f}")
 st.write(f"✅ Shading Loss: {shading_selected * 100:.1f}%")
-st.write(f"✅ Possible Rows Count: {rows_possible_exact} ")
 st.write(f"✅ Row Spacing: {selected_spacing:.2f} m")
 st.write(f"✅ Total Panels: {total_panels_exact}")
 st.write(f"⚡ System Capacity: {system_capacity_kw:.2f} kW")
