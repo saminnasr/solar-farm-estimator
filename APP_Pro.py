@@ -397,27 +397,32 @@ ax_layout.fill(land_array[:, 0], land_array[:, 1], alpha=0.1)
 center_x = (max(x_coords) + min(x_coords)) / 2
 center_y = (max(y_coords) + min(y_coords)) / 2
 
-# مشخصات گرید
-x_min, x_max = min(x_coords), max(x_coords)
-y_min, y_max = min(y_coords), max(y_coords)
-
+# مشخصات
 panel_spacing_width = panel_width + panel_gap
 area_per_panel = selected_spacing * panel_spacing_width
 max_panels_allowed = int(effective_land_area_poly / area_per_panel)
 
 # شروع چیدن
 panel_count_inside = 0
+row_idx = 0
 
-y = y_min
-while y + panel_height <= y_max:
-    x = x_min
-    while x + panel_width <= x_max:
-        panel_candidate = box(x, y, x + panel_width, y + panel_height)
+while True:
+    # محاسبه Y با توجه به مسیرهای دسترسی
+    access_path_offset = (row_idx // rows_between_paths) * access_path_width
+    y_offset = (row_idx // 2) * selected_spacing * (-1 if row_idx % 2 else 1) + access_path_offset * (-1 if row_idx % 2 else 1)
+    current_y = center_y + y_offset
+
+    col_idx = 0
+    while True:
+        x_offset = (col_idx // 2) * panel_spacing_width * (-1 if col_idx % 2 else 1)
+        current_x = center_x + x_offset
+
+        panel_candidate = box(current_x, current_y, current_x + panel_width, current_y + panel_height)
 
         if land_polygon.contains(panel_candidate):
             if panel_count_inside < max_panels_allowed:
                 panel_rect = patches.Rectangle(
-                    (x, y),
+                    (current_x, current_y),
                     panel_width,
                     panel_height,
                     edgecolor='black',
@@ -428,23 +433,31 @@ while y + panel_height <= y_max:
                 panel_count_inside += 1
             else:
                 break
-        x += panel_spacing_width
-    y += selected_spacing
+
+        if current_x > max(x_coords) or current_x < min(x_coords):
+            break
+
+        col_idx += 1
+
+    if panel_count_inside >= max_panels_allowed or current_y > max(y_coords) or current_y < min(y_coords):
+        break
+
+    row_idx += 1
 
 # پایان چیدن
 
 # رسم نهایی
 ax_layout.set_xlabel("X (m)")
 ax_layout.set_ylabel("Y (m)")
-ax_layout.set_title("Row-by-Row Panel Layout Inside Polygon")
+ax_layout.set_title("Centered and Symmetric Panel Layout Inside Polygon with Access Paths")
 ax_layout.set_aspect('equal')
 st.pyplot(fig_layout)
 
-# محاسبات خروجی واقعی
+# محاسبات واقعی
 system_capacity_poly_kw_actual = panel_count_inside * panel_capacity_kw
 yield_per_panel_poly = irradiance * panel_capacity_kw * pr * (1 - shading_loss_poly)
 total_energy_poly_actual = yield_per_panel_poly * panel_count_inside
 
-st.success(f"✅ Actual Panels (Row-by-Row till Border): {panel_count_inside}")
+st.success(f"✅ Actual Panels Placed (Centered + Access Paths): {panel_count_inside}")
 st.write(f"⚡ System Capacity: {system_capacity_poly_kw_actual:.2f} kW")
 st.write(f"⚡ Estimated Annual Energy Output: {total_energy_poly_actual:,.0f} kWh/year")
