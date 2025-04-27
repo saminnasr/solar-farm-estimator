@@ -301,8 +301,8 @@ if validate_polygon(land_coords):
 
     ref_latitude = sum(x_coords) / len(x_coords)
     land_coords_meters = [latlon_to_meters(lat, lon, ref_latitude) for lat, lon in land_coords]
-    x_coords_m=land_coords_meters[0]
-    y_coords_m=land_coords_meters[1]
+    x_coords_m=land_coords_meters[1]
+    y_coords_m=land_coords_meters[0]
 
     land_polygon_area = polygon_area(land_coords_meters)
     st.write(f"📐 Land Area: {land_polygon_area:,.1f} m²")
