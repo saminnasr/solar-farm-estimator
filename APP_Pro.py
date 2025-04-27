@@ -385,71 +385,85 @@ if validate_polygon(land_coords):
 # ساخت شکل و محور
 from shapely.geometry import Polygon, Point
 
-# 1. ساخت پلیگون زمین
 # ساخت پلیگون زمین
 land_polygon = Polygon(list(zip(x_coords, y_coords)))
 
 fig_layout, ax_layout = plt.subplots()
 
-# ترسیم مرز زمین
+# رسم مرز زمین
 land_array = np.array(list(zip(x_coords, y_coords)))
 ax_layout.plot(land_array[:, 0], land_array[:, 1], 'o-', label="Land Boundary")
 ax_layout.fill(land_array[:, 0], land_array[:, 1], alpha=0.1)
 
-# 1. مرکز زمین
+# مرکز زمین
 center_x = (max(x_coords) + min(x_coords)) / 2
 center_y = (max(y_coords) + min(y_coords)) / 2
 
-# 2. پنل مشخصات
+# ابعاد زمین
+width_total = max(x_coords) - min(x_coords)
+height_total = max(y_coords) - min(y_coords)
+
+# مساحت زمین حدودی
+land_area_total = width_total * height_total
+
+# نسبت استفاده از زمین
+usage_ratio = effective_land_area_poly / land_area_total
+scale_factor = usage_ratio ** 0.5  # چون Area = W × H
+
+# ابعاد جدید برای usable area centered
+usable_width = width_total * scale_factor
+usable_height = height_total * scale_factor
+
+# شروع نقطه گرید usable area
+x_min_new = center_x - usable_width / 2
+x_max_new = center_x + usable_width / 2
+y_min_new = center_y - usable_height / 2
+y_max_new = center_y + usable_height / 2
+
+# مشخصات پنل
 panel_spacing_width = panel_width + panel_gap
 area_per_panel = selected_spacing * panel_spacing_width
-max_panels_allowed = int(effective_land_area_poly / area_per_panel)
 
-# 3. grid resolution
-x_min, x_max = min(x_coords), max(x_coords)
-y_min, y_max = min(y_coords), max(y_coords)
-
-# 4. شروع چیدن دقیق
+# چیدن پنل از مرکز usable area
 panel_count_inside = 0
 
-x = x_min
-while x < x_max:
-    y = y_min
-    while y < y_max:
-        # تعریف یک پنل کامل (مستطیل)
+x = x_min_new
+while x + panel_width <= x_max_new:
+    y = y_min_new
+    while y + panel_height <= y_max_new:
         panel_candidate = box(x, y, x + panel_width, y + panel_height)
 
-        # چک کنیم کل پنل داخل زمین باشه
+        # فقط اگر کل پنل داخل پلیگون زمین بود
         if land_polygon.contains(panel_candidate):
-            if panel_count_inside < max_panels_allowed:
-                panel_rect = patches.Rectangle(
-                    (x, y),
-                    panel_width,
-                    panel_height,
-                    edgecolor='black',
-                    facecolor='green',
-                    alpha=0.6
-                )
-                ax_layout.add_patch(panel_rect)
-                panel_count_inside += 1
-            else:
-                break
+            panel_rect = patches.Rectangle(
+                (x, y),
+                panel_width,
+                panel_height,
+                edgecolor='black',
+                facecolor='green',
+                alpha=0.6
+            )
+            ax_layout.add_patch(panel_rect)
+            panel_count_inside += 1
 
         y += selected_spacing
     x += panel_spacing_width
 
-# 5. رسم نهایی
+# پایان چیدن
+
+# رسم نهایی
 ax_layout.set_xlabel("X (m)")
 ax_layout.set_ylabel("Y (m)")
-ax_layout.set_title("Perfect Panel Layout Inside Polygon")
+ax_layout.set_title("Centered Usable Area Panel Layout")
 ax_layout.set_aspect('equal')
 st.pyplot(fig_layout)
 
-# 6. خروجی واقعی
+# محاسبات نهایی
 system_capacity_poly_kw_actual = panel_count_inside * panel_capacity_kw
 yield_per_panel_poly = irradiance * panel_capacity_kw * pr * (1 - shading_loss_poly)
 total_energy_poly_actual = yield_per_panel_poly * panel_count_inside
 
-st.success(f"✅ Actual Panels Inside Polygon (Perfect Fit): {panel_count_inside}")
+st.success(f"✅ Actual Panels Inside Polygon (Centered Usable Area): {panel_count_inside}")
 st.write(f"⚡ System Capacity: {system_capacity_poly_kw_actual:.2f} kW")
 st.write(f"⚡ Estimated Annual Energy Output: {total_energy_poly_actual:,.0f} kWh/year")
+
