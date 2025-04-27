@@ -24,11 +24,11 @@ This tool helps you explore how **row spacing** and **panel layout** impact tota
 """)
 
 # ----------------------------- USER INPUTS -----------------------------
-st.header("🧼 Input Parameters")
+st.header("\ud83e\uddfc Input Parameters")
 
-st.subheader("🔧 System Configuration")
+st.subheader("\ud83d\udd27 System Configuration")
 
-st.subheader("📦 Table Structure")
+st.subheader("\ud83d\udce6 Table Structure")
 panels_per_mount = st.number_input("Number of Panels per Table (Mount)", value=10, step=1)
 mounts_per_row = st.number_input("Number of Mounts per Row", value=5, step=1)
 panel_capacity_kw = st.number_input("Panel Capacity (kW per panel)", value=0.55, step=0.01, format="%.2f")
@@ -101,7 +101,7 @@ def polygon_area(coords):
     return 0.5 * np.abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
 
 # ----------------------------- COMPUTATION -----------------------------
-st.subheader("📈 Define Row Spacing Range")
+st.subheader("\ud83d\udcc8 Define Row Spacing Range")
 min_spacing = st.number_input("Minimum Row Spacing (m)", value=4.0, min_value=1.0, step=0.5)
 max_spacing = st.number_input("Maximum Row Spacing (m)", value=12.0, min_value=min_spacing + 0.5, step=0.5)
 row_spacings = [round(s, 2) for s in frange(min_spacing, max_spacing + 0.01, 0.1)]
@@ -117,7 +117,7 @@ shadow_len = shadow_length(panel_tilt, panel_length, solar_angle)
 effective_land_area = land_length * land_width
 
 # ----------------------------- POLYGON LAND INPUT -----------------------------
-st.header("🌍 Define Land by Polygon Coordinates")
+st.header("\ud83c\udf0d Define Land by Polygon Coordinates")
 
 with st.expander("➕ Enter Land Polygon Coordinates (X, Y)"):
     use_polygon = st.checkbox("Use Polygon for Land Area?")
@@ -142,7 +142,7 @@ with st.expander("➕ Enter Land Polygon Coordinates (X, Y)"):
         if validate_polygon(land_coords_degrees):
             st.success("✅ Polygon coordinates are valid.")
             ref_lat = np.mean(y_coords)
-            land_coords_meters = [latlon_to_meters(lat, lon, ref_lat) for lon, lat in land_coords_degrees]
+            land_coords_meters = [latlon_to_meters(lat, lon, ref_lat) for lat, lon in land_coords_degrees]
             effective_land_area = polygon_area(land_coords_meters)
             st.write(f"\ud83d\udcc0 Land Area: {effective_land_area:,.1f} m²")
 
@@ -168,7 +168,7 @@ for spacing in row_spacings:
     spacing_results.append((spacing, total_panels, total_energy))
 
 # ----------------------------- OUTPUT -----------------------------
-st.header("📊 Output Summary for Selected Spacing")
+st.header("\ud83d\udcca Output Summary for Selected Spacing")
 
 selected_spacing = st.number_input(
     "Enter Exact Row Spacing (m)",
@@ -197,7 +197,7 @@ st.write(f"⚡ System Capacity: {system_capacity_kw:.2f} kW")
 st.write(f"⚡ Total Energy Output: {total_energy_exact:,.0f} kWh/year")
 
 # ----------------------------- PLOT -----------------------------
-st.header("📈 Energy vs. Row Spacing")
+st.header("\ud83d\udcc8 Energy vs. Row Spacing")
 
 spacings = [x[0] for x in spacing_results]
 total_panels = [x[1] for x in spacing_results]
