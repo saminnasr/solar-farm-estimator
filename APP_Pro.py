@@ -287,7 +287,7 @@ def latlon_to_meters(lat, lon, ref_lat):
     lon_m = lon * 111320 * math.cos(math.radians(ref_lat))
     return lon_m, lat_m
     
-land_coords = list(zip(x_coords, y_coords))
+land_coords = list(zip(lon_m, lat_m))
 
 if validate_polygon(land_coords):
     st.success("✅ Polygon coordinates are valid.")
