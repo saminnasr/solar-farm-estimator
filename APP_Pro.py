@@ -22,37 +22,11 @@ st.title("🔆 Solar Farm Energy Estimator")
 st.markdown("""
 ### ☀️ Welcome to the Solar Farm Energy Estimator App
 This tool helps you explore how **row spacing** and **panel layout** impact total energy production in a solar farm.
-
-🔧 Enter your design parameters below, adjust the spacing range, and analyze how it affects:
-- Number of rows and total panels
-- Ground Coverage Ratio (GCR)
-- Shading losses based on solar geometry
-- Total energy output (using live irradiance data from PVGIS)
-
-📈 You'll also see a dynamic chart to compare scenarios and an engineering summary at the end.
-
----
 """)
-with st.expander("❓ How to Use This App"):
-    st.markdown("""
-    This app helps you simulate and optimize solar farm layout and performance. Here's what each section does:
-
-    - **📦 Table Structure**: Define how many panels are installed per mounting table, and how many mounts are used in each row.
-    - **🔧 System Configuration**: Set technical parameters like panel power, optional override for total panels.
-    - **🧮 Input Parameters**: Site-specific data like location, tilt, panel dimensions, and layout.
-    - **📐 Row Spacing Range**: Define the minimum and maximum row spacing to analyze different design scenarios.
-    - **📊 Output Summary**: See the result for the exact spacing you enter, including total panels, system capacity, shading loss, and energy yield.
-    - **📈 Chart**: Visual comparison of how row spacing affects energy production and panel count.
-    - **📘 Final Summary**: Transparent overview of methods, assumptions, and reliability of each part of the model.
-
-    👉 Use this tool to compare design options, understand trade-offs, and support layout decisions.
-    """)
 
 # ----------------------------- USER INPUTS -----------------------------
 st.header("🧮 Input Parameters")
-
 st.subheader("🔧 System Configuration")
-
 st.subheader("📦 Table Structure")
 panels_per_mount = st.number_input("Number of Panels per Table (Mount)", value=10, step=1)
 mounts_per_row = st.number_input("Number of Mounts per Row", value=5, step=1)
@@ -112,7 +86,6 @@ def frange(start, stop, step):
         yield round(start, 2)
         start += step
 
-# تبدیل درجه به متر برای مختصات
 def deg2meter(x_deg_list, y_deg_list, ref_lat=None, ref_lon=None):
     if ref_lat is None:
         ref_lat = y_deg_list[0]
@@ -134,7 +107,7 @@ def validate_polygon(coords):
 def polygon_area(coords):
     x = np.array([p[0] for p in coords])
     y = np.array([p[1] for p in coords])
-    return 0.5 * np.abs(np.dot(x,np.roll(y,1)) - np.dot(y,np.roll(x,1)))
+    return 0.5 * np.abs(np.dot(x, np.roll(y,1)) - np.dot(y, np.roll(x,1)))
 
 
 
