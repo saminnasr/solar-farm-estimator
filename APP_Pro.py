@@ -4,12 +4,7 @@
 # This app calculates the estimated number of rows and panels, and the total annual energy yield
 # for a fixed-size solar farm based on user input (location, tilt, row spacing, panel dimensions).
 # Irradiance data is pulled live from PVGIS (https://re.jrc.ec.europa.eu/pvg_tools/en/#TMY) and results are visualized.
-# Solar Farm Estimator App - Streamlit Version
-# Author: SaminNasr | April 2025
-# Description:
-# This app calculates the estimated number of rows and panels, and the total annual energy yield
-# for a fixed-size solar farm based on user input (location, tilt, row spacing, panel dimensions).
-# Irradiance data is pulled live from PVGIS (https://re.jrc.ec.europa.eu/pvg_tools/en/#TMY) and results are visualized.
+
 
 import streamlit as st
 import requests
