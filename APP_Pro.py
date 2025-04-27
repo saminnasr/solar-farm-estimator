@@ -10,6 +10,9 @@ import requests
 import math
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import numpy as np
+
+
 
 # ----------------------------- CONFIGURATION -----------------------------
 st.set_page_config(page_title="Solar Farm Estimator", layout="centered")
