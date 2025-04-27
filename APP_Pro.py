@@ -286,7 +286,7 @@ land_coords = list(zip(x_coords, y_coords))
 if validate_polygon(land_coords):
     st.success("✅ Polygon coordinates are valid.")
     land_polygon_area = polygon_area(land_coords)
-    st.write(f"📐 Land Area: {land_polygon_area:.f} m²")
+    st.write(f"📐 Land Area: {land_polygon_area:.1f} m²")
 
     fig_poly, ax_poly = plt.subplots()
     land_array = np.array(land_coords)
