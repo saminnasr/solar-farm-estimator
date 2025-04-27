@@ -341,7 +341,7 @@ if validate_polygon(land_coords):
     rows_possible_before_paths = math.floor((max(y_coords_m) - min(y_coords_m)) / selected_spacing)
     num_access_paths = rows_possible_before_paths // rows_between_paths
     total_space_for_paths = num_access_paths * access_path_width
-    adjusted_rows_possible = math.floor((max(y_coords) - min(y_coords) - total_space_for_paths) / selected_spacing)
+    adjusted_rows_possible = math.floor((max(y_coords_m) - min(y_coords_m) - total_space_for_paths) / selected_spacing)
 
     estimated_total_panels_poly = panels_per_row_poly * adjusted_rows_possible
 
