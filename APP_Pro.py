@@ -389,10 +389,20 @@ if validate_polygon(land_coords):
     start_x = min(x_coords)
     start_y = min(y_coords)
 
-    for row_idx in range(adjusted_rows_possible):
-        y_pos = start_y + row_idx * selected_spacing + (row_idx // rows_between_paths) * access_path_width
-        for col_idx in range(panels_per_row_poly):
-            x_pos = start_x + col_idx * (panel_width + panel_gap)
+from shapely.geometry import Polygon, Point
+
+land_polygon = Polygon(list(zip(x_coords, y_coords)))
+
+for row_idx in range(adjusted_rows_possible):
+    y_pos = start_y + row_idx * selected_spacing + (row_idx // rows_between_paths) * access_path_width
+    for col_idx in range(panels_per_row_poly):
+        x_pos = start_x + col_idx * (panel_width + panel_gap)
+        
+        center_x = x_pos + panel_width / 2
+        center_y = y_pos + panel_height / 2
+        panel_center = Point(center_x, center_y)
+        
+        if land_polygon.contains(panel_center):
             panel_rect = patches.Rectangle((x_pos, y_pos), panel_width, panel_height, edgecolor='black', facecolor='green', alpha=0.6)
             ax_layout.add_patch(panel_rect)
 
