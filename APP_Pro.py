@@ -413,17 +413,39 @@ while True:
     y_offset = (row_idx // 2) * selected_spacing * (-1 if row_idx % 2 else 1) + access_path_offset * (-1 if row_idx % 2 else 1)
     current_y = center_y + y_offset
 
+    # اگر از زمین بیرون زدیم، قطع کنیم
     if current_y < min(y_coords) or current_y + panel_height > max(y_coords):
-        break  # خارج از زمین شدیم
+        break  
 
-    # حالا در هر ردیف روی محور X هم centered بچینیم
+    # --- محاسبه تخمینی تعداد پنل این ردیف ---
+    estimated_panels_in_row = 0
+    temp_col_idx = 0
+    while True:
+        x_offset = (temp_col_idx // 2) * panel_spacing_width * (-1 if temp_col_idx % 2 else 1)
+        current_x = center_x + x_offset
+
+        if current_x < min(x_coords) or current_x + panel_width > max(x_coords):
+            break
+
+        panel_candidate = box(current_x, current_y, current_x + panel_width, current_y + panel_height)
+
+        if land_polygon.contains(panel_candidate):
+            estimated_panels_in_row += 1
+
+        temp_col_idx += 1
+
+    # اگر پنل‌های باقی مانده کمتر از نصف ظرفیت این ردیف بود، ردیف جدید شروع نکن
+    if (max_panels_allowed - panel_count_inside) < (estimated_panels_in_row / 2):
+        break
+
+    # --- چیدن پنل واقعی در این ردیف ---
     col_idx = 0
     while True:
         x_offset = (col_idx // 2) * panel_spacing_width * (-1 if col_idx % 2 else 1)
         current_x = center_x + x_offset
 
         if current_x < min(x_coords) or current_x + panel_width > max(x_coords):
-            break  # خارج از زمین شدیم
+            break
 
         panel_candidate = box(current_x, current_y, current_x + panel_width, current_y + panel_height)
 
@@ -449,7 +471,7 @@ while True:
 
     row_idx += 1
 
-# پایان چیدن
+# --- پایان چیدن ---
 
 # رسم نهایی
 ax_layout.set_xlabel("X (m)")
@@ -458,7 +480,7 @@ ax_layout.set_title("Perfect Centered Symmetric Panel Layout with Access Paths")
 ax_layout.set_aspect('equal')
 st.pyplot(fig_layout)
 
-# محاسبات واقعی
+# محاسبات نهایی
 system_capacity_poly_kw_actual = panel_count_inside * panel_capacity_kw
 yield_per_panel_poly = irradiance * panel_capacity_kw * pr * (1 - shading_loss_poly)
 total_energy_poly_actual = yield_per_panel_poly * panel_count_inside
