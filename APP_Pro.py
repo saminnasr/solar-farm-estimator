@@ -382,16 +382,20 @@ if validate_polygon(land_coords):
 
     st.subheader("🗺️ Layout Visualization")
 
-    fig_layout, ax_layout = plt.subplots()
-    ax_layout.plot(land_array[:, 0], land_array[:, 1], 'o-', label="Land Boundary")
-    ax_layout.fill(land_array[:, 0], land_array[:, 1], alpha=0.1)
+# ساخت شکل و محور
+fig_layout, ax_layout = plt.subplots()
 
-    start_x = min(x_coords)
-    start_y = min(y_coords)
+# ترسیم زمین
+land_array = np.array(list(zip(x_coords, y_coords)))
+ax_layout.plot(land_array[:, 0], land_array[:, 1], 'o-', label="Land Boundary")
+ax_layout.fill(land_array[:, 0], land_array[:, 1], alpha=0.1)
 
-from shapely.geometry import Polygon, Point
+start_x = min(x_coords)
+start_y = min(y_coords)
 
-land_polygon = Polygon(list(zip(x_coords, y_coords)))
+# ✅ این خط باید اینجا باشه
+panel_count_inside = 0
+
 
 for row_idx in range(adjusted_rows_possible):
     # محاسبه موقعیت y هر ردیف با درنظرگرفتن مسیر دسترسی
