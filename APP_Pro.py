@@ -287,15 +287,28 @@ def polygon_area(coords):
     y = np.array([p[1] for p in coords])
     return 0.5 * np.abs(np.dot(x,np.roll(y,1)) - np.dot(y,np.roll(x,1)))
 
+def latlon_to_meters(lat, lon, ref_lat):
+    lat_m = lat * 111320
+    lon_m = lon * 111320 * math.cos(math.radians(ref_lat))
+    return lon_m, lat_m
+
 land_coords = list(zip(x_coords, y_coords))
+
 
 if validate_polygon(land_coords):
     st.success("✅ Polygon coordinates are valid.")
-    land_polygon_area = polygon_area(land_coords)
-    st.write(f"📐 Land Area: {land_polygon_area:.1f} m²")
+    
+
+    ref_latitude = sum(x_coords) / len(x_coords)
+    land_coords_meters = [latlon_to_meters(lat, lon, ref_latitude) for lat, lon in land_coords]
+    x_coords_m=land_coords_meters[0]
+    y_coords_m=land_coords_meters[1]
+
+    land_polygon_area = polygon_area(land_coords_meters)
+    st.write(f"📐 Land Area: {land_polygon_area:,.1f} m²")
 
     fig_poly, ax_poly = plt.subplots()
-    land_array = np.array(land_coords)
+    land_array = np.array(land_coords_meters)
     ax_poly.plot(land_array[:,0], land_array[:,1], 'o-', label="Land Boundary")
     ax_poly.fill(land_array[:,0], land_array[:,1], alpha=0.3)
     ax_poly.set_xlabel("X (m)")
@@ -327,9 +340,10 @@ if validate_polygon(land_coords):
     panel_spacing_width_poly = panel_width + panel_gap
     area_per_panel_poly = selected_spacing * panel_spacing_width_poly
 
-    panels_per_row_poly = math.floor((max(x_coords) - min(x_coords)) / (panel_width + panel_gap))
 
-    rows_possible_before_paths = math.floor((max(y_coords) - min(y_coords)) / selected_spacing)
+    panels_per_row_poly = math.floor((max(x_coords_m) - min(x_coords_m)) / (panel_width + panel_gap))
+
+    rows_possible_before_paths = math.floor((max(y_coords_m) - min(y_coords_m)) / selected_spacing)
     num_access_paths = rows_possible_before_paths // rows_between_paths
     total_space_for_paths = num_access_paths * access_path_width
     adjusted_rows_possible = math.floor((max(y_coords) - min(y_coords) - total_space_for_paths) / selected_spacing)
