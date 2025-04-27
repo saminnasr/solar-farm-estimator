@@ -238,48 +238,101 @@ st.write(f"✅ Rows Possible: {rows_possible_layout}")
 st.write(f"✅ Total Panels by Layout: {total_panels_layout}")
 
 # ----------------------------- POLYGON LAND INPUT -----------------------------
-
 st.header("🌍 Define Land by Polygon Coordinates")
 
 with st.expander("➕ Enter Land Polygon Coordinates (X, Y)"):
-    num_points = st.number_input("Number of Points (Minimum 3)", min_value=3, value=4, step=1)
+    use_polygon = st.checkbox("Use Polygon for Land Area?")
 
-    x_coords = []
-    y_coords = []
+    if use_polygon:
+        num_points = st.number_input("Number of Points (Minimum 3)", min_value=3, value=4, step=1)
 
-    for i in range(num_points):
-        colx, coly = st.columns(2)
-        with colx:
-            x = st.number_input(f"X coordinate {i+1}", key=f"x_{i}", format="%.4f", step=0.0001)
-        with coly:
-            y = st.number_input(f"Y coordinate {i+1}", key=f"y_{i}", format="%.4f", step=0.0001)
-        x_coords.append(x)
-        y_coords.append(y)
+        x_coords = []
+        y_coords = []
 
-    land_coords = list(zip(x_coords, y_coords))
+        for i in range(num_points):
+            colx, coly = st.columns(2)
+            with colx:
+                x = st.number_input(f"Longitude {i+1} (°)", key=f"lon_{i}", format="%.4f", step=0.0001)
+            with coly:
+                y = st.number_input(f"Latitude {i+1} (°)", key=f"lat_{i}", format="%.4f", step=0.0001)
+            x_coords.append(x)
+            y_coords.append(y)
 
-    def validate_polygon(coords):
-        return len(coords) >= 3
+        land_coords_degrees = list(zip(x_coords, y_coords))
 
-    def polygon_area(coords):
-        x = np.array([p[0] for p in coords])
-        y = np.array([p[1] for p in coords])
-        return 0.5 * np.abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
+        if validate_polygon(land_coords_degrees):
+            st.success("✅ Polygon coordinates are valid.")
+            ref_lat = np.mean(y_coords)
+            land_coords_meters = [latlon_to_meters(lat, lon, ref_lat) for lon, lat in land_coords_degrees]
+            effective_land_area = polygon_area(land_coords_meters)
+            st.write(f"\ud83d\udcc0 Land Area: {effective_land_area:,.1f} m²")
 
-    if validate_polygon(land_coords):
-        st.success("✅ Polygon coordinates are valid.")
-        land_polygon_area = polygon_area(land_coords)
-        st.write(f"\ud83d\udcc0 Land Area: {land_polygon_area:.1f} m²")
+# ----------------------------- SPACING RESULTS -----------------------------
+spacing_results = []
+for spacing in row_spacings:
+    rows_possible = math.floor(land_length / spacing)
+    panel_spacing_width = panel_width + panel_gap
+    panels_per_row = math.floor(land_width / panel_spacing_width)
+    gross_panels = panels_per_row * rows_possible
+    area_per_panel = spacing * panel_spacing_width
+    total_area_panels = gross_panels * area_per_panel
 
-        fig_poly, ax_poly = plt.subplots()
-        land_array = np.array(land_coords)
-        land_array = np.vstack([land_array, land_array[0]])
-        ax_poly.plot(land_array[:,0], land_array[:,1], 'o-', label="Land Boundary")
-        ax_poly.fill(land_array[:,0], land_array[:,1], alpha=0.3)
-        ax_poly.set_xlabel("X (m)")
-        ax_poly.set_ylabel("Y (m)")
-        ax_poly.set_title("Land Polygon")
-        ax_poly.axis('equal')
-        st.pyplot(fig_poly)
+    if total_area_panels > effective_land_area:
+        correction_factor = effective_land_area / total_area_panels
+        total_panels = int(gross_panels * correction_factor)
     else:
-        st.error("❌ Polygon must have at least 3 points.")
+        total_panels = gross_panels
+
+    shading_loss = estimate_shading_loss(spacing, shadow_len)
+    yield_per_panel = irradiance * pr * (1 - shading_loss)
+    total_energy = yield_per_panel * total_panels
+    spacing_results.append((spacing, total_panels, total_energy))
+
+# ----------------------------- OUTPUT -----------------------------
+st.header("📊 Output Summary for Selected Spacing")
+
+selected_spacing = st.number_input(
+    "Enter Exact Row Spacing (m)",
+    min_value=min_spacing,
+    max_value=max_spacing,
+    value=min_spacing,
+    step=0.01,
+    format="%.2f"
+)
+
+rows_possible_exact = math.floor(land_length / selected_spacing)
+panels_per_row_exact = mounts_per_row * panels_per_mount
+total_panels_exact = int(user_defined_panels) if user_defined_panels > 0 else panels_per_row_exact * rows_possible_exact
+shading_selected = estimate_shading_loss(selected_spacing, shadow_len)
+yield_per_panel_exact = irradiance * panel_capacity_kw * pr * (1 - shading_selected)
+total_energy_exact = yield_per_panel_exact * total_panels_exact
+system_capacity_kw = total_panels_exact * panel_capacity_kw
+gcr_selected = panel_width / selected_spacing if spacing_results else None
+
+st.write(f"✅ GCR: {gcr_selected:.2f}")
+st.write(f"✅ Shading Loss: {shading_selected * 100:.1f}%")
+st.write(f"✅ Row Spacing: {selected_spacing:.2f} m")
+st.write(f"✅ Possible Rows: {rows_possible_exact} ")
+st.write(f"✅ Total Panels: {total_panels_exact}")
+st.write(f"⚡ System Capacity: {system_capacity_kw:.2f} kW")
+st.write(f"⚡ Total Energy Output: {total_energy_exact:,.0f} kWh/year")
+
+# ----------------------------- PLOT -----------------------------
+st.header("📈 Energy vs. Row Spacing")
+
+spacings = [x[0] for x in spacing_results]
+total_panels = [x[1] for x in spacing_results]
+total_energies = [x[2] for x in spacing_results]
+
+fig, ax1 = plt.subplots()
+ax2 = ax1.twinx()
+ax1.plot(spacings, total_panels, 'g-o', label="Total Panels")
+ax2.plot(spacings, total_energies, 'b-s', label="Total Energy")
+
+ax1.set_xlabel("Row Spacing (m)")
+ax1.set_ylabel("Total Panels", color='g')
+ax2.set_ylabel("Total Energy (kWh/year)", color='b')
+plt.title("Effect of Row Spacing on Panel Count and Energy Output")
+
+st.pyplot(fig)
+
