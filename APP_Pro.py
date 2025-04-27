@@ -261,10 +261,9 @@ with st.expander("➕ Enter Land Polygon Coordinates (X, Y)"):
         x_coords.append(x)
         y_coords.append(y)
 
-    # Close the polygon automatically
-    # x_coords.append(x_coords[0])
-    # y_coords.append(y_coords[0])
-land_coords = list(zip(x_coords, y_coords))
+   # Close the polygon automatically
+    x_coords.append(x_coords[0])
+    y_coords.append(y_coords[0])
 
 import numpy as np
 
@@ -282,10 +281,8 @@ def polygon_area(coords):
     y = np.array([p[1] for p in coords])
     return 0.5 * np.abs(np.dot(x,np.roll(y,1)) - np.dot(y,np.roll(x,1)))
 
-    # Close the polygon automatically
-    x_coords.append(x_coords[0])
-    y_coords.append(y_coords[0])
-    
+land_coords = list(zip(x_coords, y_coords))
+
 if validate_polygon(land_coords):
     st.success("✅ Polygon coordinates are valid.")
     land_polygon_area = polygon_area(land_coords)
