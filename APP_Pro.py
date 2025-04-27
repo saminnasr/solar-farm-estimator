@@ -9,6 +9,7 @@ import streamlit as st
 import requests
 import math
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 # ----------------------------- CONFIGURATION -----------------------------
 st.set_page_config(page_title="Solar Farm Estimator", layout="centered")
@@ -238,36 +239,13 @@ st.write(f"✅ Rows Possible: {rows_possible_layout}")
 st.write(f"✅ Total Panels by Layout: {total_panels_layout}")
 
 # ----------------------------- POLYGON LAND INPUT -----------------------------
-
-st.header("🌍 Define Land by Polygon Coordinates")
-
-with st.expander("➕ Enter Land Polygon Coordinates (X, Y)"):
-    st.markdown("""
-    ➡️ Define your land boundary by entering X and Y coordinates separately.
-    - Enter points in order (first and last point will automatically close).
-    """)
-
-    num_points = st.number_input("Number of Points (Minimum 3)", min_value=3, value=4, step=1)
-
-    x_coords = []
-    y_coords = []
-
-    for i in range(num_points):
-        colx, coly = st.columns(2)
-        with colx:
-            x = st.number_input(f"X coordinate {i+1}", key=f"x_{i}", format="%.4f", step=0.0001)
-        with coly:
-            y = st.number_input(f"Y coordinate {i+1}", key=f"y_{i}", format="%.4f", step=0.0001)
-        x_coords.append(x)
-        y_coords.append(y)
-
-    # Close the polygon automatically
-    x_coords.append(x_coords[0])
-    y_coords.append(y_coords[0])
-
-import numpy as np
-
-import matplotlib.patches as patches
+def latlon_to_meters(lat, lon, lat0, lon0):
+    R = 6378137 
+    dlat = np.radians(lat - lat0)
+    dlon = np.radians(lon - lon0)
+    x = R * dlon * np.cos(np.radians(lat0))
+    y = R * dlat
+    return x, y
 
 def validate_polygon(coords):
     if len(coords) < 4:
@@ -279,8 +257,45 @@ def validate_polygon(coords):
 def polygon_area(coords):
     x = np.array([p[0] for p in coords])
     y = np.array([p[1] for p in coords])
-    return 0.5 * np.abs(np.dot(x,np.roll(y,1)) - np.dot(y,np.roll(x,1)))
+    return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
+st.header("🌍 Define Land by Polygon Coordinates (Lat/Lon → Meters)")
+
+with st.expander("➕ Enter Land Polygon Coordinates (Longitude, Latitude)"):
+    st.markdown("""
+    ➡️ Define your land boundary by entering Longitude (X) and Latitude (Y) separately.
+    - Enter points in order (first and last point will automatically close).
+    """)
+    
+    num_points = st.number_input("Number of Points (Minimum 3)", min_value=3, value=4, step=1)
+
+    lon_coords = []
+    lat_coords = []
+
+    for i in range(num_points):
+        colx, coly = st.columns(2)
+        with colx:
+            lon = st.number_input(f"Longitude {i+1}", key=f"lon_{i}", format="%.6f", step=0.0001)
+        with coly:
+            lat = st.number_input(f"Latitude {i+1}", key=f"lat_{i}", format="%.6f", step=0.0001)
+        lon_coords.append(lon)
+        lat_coords.append(lat)
+
+    lon_coords.append(lon_coords[0])
+    lat_coords.append(lat_coords[0])
+
+    lat0 = lat_coords[0]
+    lon0 = lon_coords[0]
+
+    x_coords = []
+    y_coords = []
+
+    for lon, lat in zip(lon_coords, lat_coords):
+        x_m, y_m = latlon_to_meters(lat, lon, lat0, lon0)
+        x_coords.append(x_m)
+        y_coords.append(y_m)
+
+# محاسبات اصلی
 land_coords = list(zip(x_coords, y_coords))
 
 if validate_polygon(land_coords):
@@ -290,11 +305,11 @@ if validate_polygon(land_coords):
 
     fig_poly, ax_poly = plt.subplots()
     land_array = np.array(land_coords)
-    ax_poly.plot(land_array[:,0], land_array[:,1], 'o-', label="Land Boundary")
-    ax_poly.fill(land_array[:,0], land_array[:,1], alpha=0.3)
+    ax_poly.plot(land_array[:, 0], land_array[:, 1], 'o-', label="Land Boundary")
+    ax_poly.fill(land_array[:, 0], land_array[:, 1], alpha=0.3)
     ax_poly.set_xlabel("X (m)")
     ax_poly.set_ylabel("Y (m)")
-    ax_poly.set_title("Land Polygon")
+    ax_poly.set_title("Land Polygon (Meters)")
     ax_poly.axis('equal')
     st.pyplot(fig_poly)
 
@@ -307,7 +322,7 @@ if validate_polygon(land_coords):
 
     if use_percentage_poly:
         land_usage_percent_poly = st.number_input("Usable Land Percentage (%) for Polygon", min_value=50, max_value=100, value=90, key="poly_percent_val")
-        effective_land_area_poly = (land_polygon_area) * (land_usage_percent_poly / 100)
+        effective_land_area_poly = land_polygon_area * (land_usage_percent_poly / 100)
     elif use_manual_area_poly:
         effective_land_area_poly = st.number_input("Effective Land Area (m²) for Polygon", value=int(land_polygon_area * 0.9), key="poly_manual_val")
 
@@ -316,13 +331,36 @@ if validate_polygon(land_coords):
     access_path_width = st.number_input("Access Path Width (m)", min_value=0.0, value=3.0, step=0.5)
     rows_between_paths = st.number_input("Rows Between Access Paths", min_value=1, value=10, step=1)
 
+
+    panel_width = 1.1  
+    panel_height = 2.2  
+    panel_gap = 0.5 
+    selected_spacing = 5.0  
+    panel_capacity_kw = 0.5 
+    pr = 0.75  
+    irradiance = 1800  
+    panel_length = 2.2  
+    panel_tilt = 25  
+    lat = lat0  
+
+    def shadow_length(tilt, length, angle):
+        return length * math.sin(math.radians(tilt)) / math.tan(math.radians(angle))
+
+    def critical_solar_angle(latitude):
+        return 90 - latitude + 23.45
+
+    def estimate_shading_loss(spacing, shadow):
+        if spacing == 0:
+            return 0
+        loss = shadow / spacing
+        return min(max(loss, 0), 0.2)  
+
     st.subheader("📊 Output Summary for Polygon Land")
 
     panel_spacing_width_poly = panel_width + panel_gap
     area_per_panel_poly = selected_spacing * panel_spacing_width_poly
 
     panels_per_row_poly = math.floor((max(x_coords) - min(x_coords)) / (panel_width + panel_gap))
-
     rows_possible_before_paths = math.floor((max(y_coords) - min(y_coords)) / selected_spacing)
     num_access_paths = rows_possible_before_paths // rows_between_paths
     total_space_for_paths = num_access_paths * access_path_width
@@ -347,8 +385,8 @@ if validate_polygon(land_coords):
     st.subheader("🗺️ Layout Visualization")
 
     fig_layout, ax_layout = plt.subplots()
-    ax_layout.plot(land_array[:,0], land_array[:,1], 'o-', label="Land Boundary")
-    ax_layout.fill(land_array[:,0], land_array[:,1], alpha=0.1)
+    ax_layout.plot(land_array[:, 0], land_array[:, 1], 'o-', label="Land Boundary")
+    ax_layout.fill(land_array[:, 0], land_array[:, 1], alpha=0.1)
 
     start_x = min(x_coords)
     start_y = min(y_coords)
