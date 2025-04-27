@@ -137,6 +137,7 @@ def polygon_area(coords):
     return 0.5 * np.abs(np.dot(x,np.roll(y,1)) - np.dot(y,np.roll(x,1)))
 
 
+
 # ----------------------------- USABLE LAND SETTINGS -----------------------------
 
 st.subheader("🏗️ Land Usable Area Settings")
@@ -191,14 +192,12 @@ for spacing in row_spacings:
 
 st.header("📊 Output Summary for Selected Spacing")
 
-selected_spacing = st.number_input(
-    "Enter Exact Row Spacing (m)",
+selected_spacing = st.number_input("Enter Exact Row Spacing (m)",
     min_value=min_spacing,
     max_value=max_spacing,
     value=min_spacing,
     step=0.01,
-    format="%.2f"
-)
+    format="%.2f")
 
 rows_possible_exact = math.floor(land_length / selected_spacing)
 panels_per_row_exact = mounts_per_row * panels_per_mount
@@ -261,11 +260,9 @@ with st.expander("➕ Enter Land Polygon Coordinates (X, Y)"):
         x_coords.append(x)
         y_coords.append(y)
 
-    # Close the polygon automatically
     x_coords.append(x_coords[0])
     y_coords.append(y_coords[0])
 
-    # تبدیل مختصات به متر
     x_meters, y_meters = deg2meter(x_coords, y_coords)
     land_coords = list(zip(x_meters, y_meters))
 
