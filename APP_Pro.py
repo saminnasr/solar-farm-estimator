@@ -6,19 +6,19 @@
 # Irradiance data is pulled live from PVGIS (https://re.jrc.ec.europa.eu/pvg_tools/en/#TMY) and results are visualized.
 
 
+
 import streamlit as st
 import requests
 import math
+import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 # ----------------------------- CONFIGURATION -----------------------------
 st.set_page_config(page_title="Solar Farm Estimator", layout="centered")
 st.title("🔆 Solar Farm Energy Estimator")
 
 # ----------------------------- INTRO SECTION -----------------------------
-
-
-
 st.markdown("""
 ### ☀️ Welcome to the Solar Farm Energy Estimator App
 This tool helps you explore how **row spacing** and **panel layout** impact total energy production in a solar farm.
@@ -47,6 +47,7 @@ with st.expander("❓ How to Use This App"):
 
     👉 Use this tool to compare design options, understand trade-offs, and support layout decisions.
     """)
+
 # ----------------------------- USER INPUTS -----------------------------
 st.header("🧮 Input Parameters")
 
@@ -61,6 +62,7 @@ user_defined_panels = st.number_input("Override Total Number of Panels (optional
 col1, col2 = st.columns(2)
 with col1:
     lat = st.number_input("Latitude (°N)", value=28.28, format="%.4f")
+    lon = st.number_input("Longitude (°E)", value=60.00, format="%.4f")
     panel_tilt = st.number_input("Tilt Angle (°)", value=25)
     panel_height = st.number_input("Panel Height (m)", value=1.5, format="%.2f")
     panel_length = st.number_input("Panel Length (m)", value=2.0, format="%.2f")
@@ -73,9 +75,8 @@ with col2:
     panel_gap = st.number_input("Gap Between Panels (m)", value=0.2, format="%.2f")
 
 # ----------------------------- HELPER FUNCTIONS -----------------------------
-
-def get_irradiance_from_pvgis(lat):
-    url = f"https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat={lat}&lon=60&peakpower=1&loss=14&outputformat=json"
+def get_irradiance_from_pvgis(lat, lon):
+    url = f"https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat={lat}&lon={lon}&peakpower=1&loss=14&outputformat=json"
     try:
         res = requests.get(url, timeout=10)
         data = res.json()
@@ -110,8 +111,32 @@ def frange(start, stop, step):
     while start <= stop:
         yield round(start, 2)
         start += step
-        
-        
+
+# تبدیل درجه به متر برای مختصات
+def deg2meter(x_deg_list, y_deg_list, ref_lat=None, ref_lon=None):
+    if ref_lat is None:
+        ref_lat = y_deg_list[0]
+    if ref_lon is None:
+        ref_lon = x_deg_list[0]
+    lat_factor = 111_000
+    lon_factor = 111_000 * np.cos(np.radians(ref_lat))
+    x_m = [(x - ref_lon) * lon_factor for x in x_deg_list]
+    y_m = [(y - ref_lat) * lat_factor for y in y_deg_list]
+    return x_m, y_m
+
+def validate_polygon(coords):
+    if len(coords) < 4:
+        return False
+    if coords[0] != coords[-1]:
+        return False
+    return True
+
+def polygon_area(coords):
+    x = np.array([p[0] for p in coords])
+    y = np.array([p[1] for p in coords])
+    return 0.5 * np.abs(np.dot(x,np.roll(y,1)) - np.dot(y,np.roll(x,1)))
+
+
 # ----------------------------- USABLE LAND SETTINGS -----------------------------
 
 st.subheader("🏗️ Land Usable Area Settings")
@@ -134,7 +159,7 @@ min_spacing = st.number_input("Minimum Row Spacing (m)", value=4.0, min_value=1.
 max_spacing = st.number_input("Maximum Row Spacing (m)", value=12.0, min_value=min_spacing + 0.5, step=0.5)
 row_spacings = [round(s, 2) for s in frange(min_spacing, max_spacing + 0.01, 0.1)]
 
-irradiance = get_irradiance_from_pvgis(lat)
+irradiance = get_irradiance_from_pvgis(lat, lon)
 if irradiance is None:
     st.error("Failed to retrieve irradiance data from PVGIS.")
     st.stop()
@@ -187,7 +212,7 @@ gcr_selected = panel_width / selected_spacing if spacing_results else None
 st.write(f"✅ GCR: {gcr_selected:.2f}")
 st.write(f"✅ Shading Loss: {shading_selected * 100:.1f}%")
 st.write(f"✅ Row Spacing: {selected_spacing:.2f} m")
-st.write(f"✅ Possible Rows: {rows_possible_exact} ")
+st.write(f"✅ Possible Rows: {rows_possible_exact}")
 st.write(f"✅ Total Panels: {total_panels_exact}")
 st.write(f"⚡ System Capacity: {system_capacity_kw:.2f} kW")
 st.write(f"⚡ Total Energy Output: {total_energy_exact:,.0f} kWh/year")
@@ -212,32 +237,6 @@ plt.title("Effect of Row Spacing on Panel Count and Energy Output")
 
 st.pyplot(fig)
 
-# ----------------------------- LAYOUT ESTIMATOR -----------------------------
-
-st.header("🧱 Layout Estimator: Panel & Row Count by Geometry")
-
-st.subheader("📏 Layout Inputs")
-col_layout1, col_layout2 = st.columns(2)
-
-with col_layout1:
-    layout_land_length = st.number_input("Layout Land Length (m)", value=230.0, format="%.1f")
-    layout_panel_length = st.number_input("Panel Length (m)", value=2.0, format="%.2f", key="layout_panel_length")
-    layout_row_spacing = st.number_input("Row Spacing (m)", value=8.0, format="%.2f", key="layout_row_spacing")
-
-with col_layout2:
-    layout_land_width = st.number_input("Layout Land Width (m)", value=200.0, format="%.1f")
-    layout_panel_width = st.number_input("Panel Width (m)", value=1.1, format="%.2f", key="layout_panel_width")
-    layout_panel_gap = st.number_input("Gap Between Panels (Width) (m)", value=0.2, format="%.2f")
-
-panels_per_row_layout = math.floor(layout_land_width / (layout_panel_width + layout_panel_gap))
-rows_possible_layout = math.floor(layout_land_length / layout_row_spacing)
-total_panels_layout = panels_per_row_layout * rows_possible_layout
-
-st.subheader("📊 Layout Output")
-st.write(f"✅ Panels per Row: {panels_per_row_layout}")
-st.write(f"✅ Rows Possible: {rows_possible_layout}")
-st.write(f"✅ Total Panels by Layout: {total_panels_layout}")
-
 # ----------------------------- POLYGON LAND INPUT -----------------------------
 
 st.header("🌍 Define Land by Polygon Coordinates")
@@ -256,9 +255,9 @@ with st.expander("➕ Enter Land Polygon Coordinates (X, Y)"):
     for i in range(num_points):
         colx, coly = st.columns(2)
         with colx:
-            x = st.number_input(f"X coordinate {i+1}", key=f"x_{i}", format="%.4f", step=0.0001)
+            x = st.number_input(f"Longitude {i+1} (°)", key=f"x_{i}", format="%.6f", step=0.0001)
         with coly:
-            y = st.number_input(f"Y coordinate {i+1}", key=f"y_{i}", format="%.4f", step=0.0001)
+            y = st.number_input(f"Latitude {i+1} (°)", key=f"y_{i}", format="%.6f", step=0.0001)
         x_coords.append(x)
         y_coords.append(y)
 
@@ -266,120 +265,23 @@ with st.expander("➕ Enter Land Polygon Coordinates (X, Y)"):
     x_coords.append(x_coords[0])
     y_coords.append(y_coords[0])
 
-import numpy as np
+    # تبدیل مختصات به متر
+    x_meters, y_meters = deg2meter(x_coords, y_coords)
+    land_coords = list(zip(x_meters, y_meters))
 
-import matplotlib.patches as patches
+    if validate_polygon(land_coords):
+        st.success("✅ Polygon coordinates are valid (after conversion).")
+        land_polygon_area = polygon_area(land_coords)
+        st.write(f"📐 Land Area: {land_polygon_area:.1f} m²")
 
-def validate_polygon(coords):
-    if len(coords) < 4:
-        return False
-    if coords[0] != coords[-1]:
-        return False
-    return True
-
-def polygon_area(coords):
-    x = np.array([p[0] for p in coords])
-    y = np.array([p[1] for p in coords])
-    return 0.5 * np.abs(np.dot(x,np.roll(y,1)) - np.dot(y,np.roll(x,1)))
-
-def latlon_to_meters(lat, lon, ref_lat):
-    lat_m = lat * 111320
-    lon_m = lon * 111320 * math.cos(math.radians(ref_lat))
-    return lon_m, lat_m
-
-land_coords = list(zip(x_coords, y_coords))
-
-
-if validate_polygon(land_coords):
-    st.success("✅ Polygon coordinates are valid.")
-    
-
-    ref_latitude = sum(x_coords) / len(x_coords)
-    land_coords_meters = [latlon_to_meters(lat, lon, ref_latitude) for lat, lon in land_coords]
-    x_coords_m=land_coords_meters[1]
-    y_coords_m=land_coords_meters[0]
-
-    land_polygon_area = polygon_area(land_coords_meters)
-    st.write(f"📐 Land Area: {land_polygon_area:,.1f} m²")
-
-    fig_poly, ax_poly = plt.subplots()
-    land_array = np.array(land_coords_meters)
-    ax_poly.plot(land_array[:,0], land_array[:,1], 'o-', label="Land Boundary")
-    ax_poly.fill(land_array[:,0], land_array[:,1], alpha=0.3)
-    ax_poly.set_xlabel("X (m)")
-    ax_poly.set_ylabel("Y (m)")
-    ax_poly.set_title("Land Polygon")
-    ax_poly.axis('equal')
-    st.pyplot(fig_poly)
-
-    st.subheader("🏗️ Land Usable Area Settings (Polygon Based)")
-
-    use_percentage_poly = st.checkbox("Use Usable Land Percentage for Polygon (%)", value=True, key="poly_percent")
-    use_manual_area_poly = st.checkbox("Or Enter Usable Land Area for Polygon Directly (m²)", key="poly_manual")
-
-    effective_land_area_poly = land_polygon_area  # Default
-
-    if use_percentage_poly:
-        land_usage_percent_poly = st.number_input("Usable Land Percentage (%) for Polygon", min_value=50, max_value=100, value=90, key="poly_percent_val")
-        effective_land_area_poly = (land_polygon_area) * (land_usage_percent_poly / 100)
-    elif use_manual_area_poly:
-        effective_land_area_poly = st.number_input("Effective Land Area (m²) for Polygon", value=int(land_polygon_area * 0.9), key="poly_manual_val")
-
-    st.subheader("🛣️ Define Access Path Settings")
-
-    access_path_width = st.number_input("Access Path Width (m)", min_value=0.0, value=3.0, step=0.5)
-    rows_between_paths = st.number_input("Rows Between Access Paths", min_value=1, value=10, step=1)
-
-    st.subheader("📊 Output Summary for Polygon Land")
-
-    panel_spacing_width_poly = panel_width + panel_gap
-    area_per_panel_poly = selected_spacing * panel_spacing_width_poly
-
-
-    panels_per_row_poly = math.floor((max(x_coords_m) - min(x_coords_m)) / (panel_width + panel_gap))
-
-    rows_possible_before_paths = math.floor((max(y_coords_m) - min(y_coords_m)) / selected_spacing)
-    num_access_paths = rows_possible_before_paths // rows_between_paths
-    total_space_for_paths = num_access_paths * access_path_width
-    adjusted_rows_possible = math.floor((max(y_coords_m) - min(y_coords_m) - total_space_for_paths) / selected_spacing)
-
-    estimated_total_panels_poly = panels_per_row_poly * adjusted_rows_possible
-
-    shading_loss_poly = estimate_shading_loss(selected_spacing, shadow_length(panel_tilt, panel_length, critical_solar_angle(lat)))
-    yield_per_panel_poly = irradiance * panel_capacity_kw * pr * (1 - shading_loss_poly)
-    total_energy_poly = yield_per_panel_poly * estimated_total_panels_poly
-    system_capacity_poly_kw = estimated_total_panels_poly * panel_capacity_kw
-    gcr_poly = panel_width / selected_spacing if selected_spacing else None
-
-    st.write(f"✅ GCR: {gcr_poly:.2f}")
-    st.write(f"✅ Shading Loss: {shading_loss_poly * 100:.1f}%")
-    st.write(f"✅ Panels per Row: {panels_per_row_poly}")
-    st.write(f"✅ Total Rows: {adjusted_rows_possible}")
-    st.write(f"✅ Total Panels: {estimated_total_panels_poly}")
-    st.write(f"⚡ System Capacity: {system_capacity_poly_kw:.2f} kW")
-    st.write(f"⚡ Estimated Annual Energy Output: {total_energy_poly:,.0f} kWh/year")
-
-    st.subheader("🗺️ Layout Visualization")
-
-    fig_layout, ax_layout = plt.subplots()
-    ax_layout.plot(land_array[:,0], land_array[:,1], 'o-', label="Land Boundary")
-    ax_layout.fill(land_array[:,0], land_array[:,1], alpha=0.1)
-
-    start_x = min(x_coords)
-    start_y = min(y_coords)
-
-    for row_idx in range(adjusted_rows_possible):
-        y_pos = start_y + row_idx * selected_spacing + (row_idx // rows_between_paths) * access_path_width
-        for col_idx in range(panels_per_row_poly):
-            x_pos = start_x + col_idx * (panel_width + panel_gap)
-            panel_rect = patches.Rectangle((x_pos, y_pos), panel_width, panel_height, edgecolor='black', facecolor='green', alpha=0.6)
-            ax_layout.add_patch(panel_rect)
-
-    ax_layout.set_xlabel("X (m)")
-    ax_layout.set_ylabel("Y (m)")
-    ax_layout.set_title("Panel Layout with Access Paths")
-    ax_layout.set_aspect('equal')
-    st.pyplot(fig_layout)
-
-else:
-    st.error("❌ Coordinates must form a closed polygon with at least 3 sides.")
+        fig_poly, ax_poly = plt.subplots()
+        land_array = np.array(land_coords)
+        ax_poly.plot(land_array[:, 0], land_array[:, 1], 'o-', label="Land Boundary")
+        ax_poly.fill(land_array[:, 0], land_array[:, 1], alpha=0.3)
+        ax_poly.set_xlabel("X (m)")
+        ax_poly.set_ylabel("Y (m)")
+        ax_poly.set_title("Land Polygon")
+        ax_poly.axis('equal')
+        st.pyplot(fig_poly)
+    else:
+        st.error("❌ Coordinates must form a closed polygon with at least 3 sides.")
