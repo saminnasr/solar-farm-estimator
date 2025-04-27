@@ -262,8 +262,8 @@ with st.expander("➕ Enter Land Polygon Coordinates (X, Y)"):
         y_coords.append(y)
 
    # Close the polygon automatically
-    x_coords.append(x_coords[0])
-    y_coords.append(y_coords[0])
+    # x_coords.append(x_coords[0])
+    # y_coords.append(y_coords[0])
 
 import numpy as np
 
