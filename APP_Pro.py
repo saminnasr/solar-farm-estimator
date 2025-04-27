@@ -240,13 +240,14 @@ st.write(f"✅ Total Panels by Layout: {total_panels_layout}")
 
 # ----------------------------- POLYGON LAND INPUT -----------------------------
 def latlon_to_meters(lat, lon, lat0, lon0):
-    R = 6378137 
+    R = 6378137  # شعاع زمین به متر
     dlat = np.radians(lat - lat0)
     dlon = np.radians(lon - lon0)
     x = R * dlon * np.cos(np.radians(lat0))
     y = R * dlat
     return x, y
 
+# توابع هندسی
 def validate_polygon(coords):
     if len(coords) < 4:
         return False
@@ -259,6 +260,7 @@ def polygon_area(coords):
     y = np.array([p[1] for p in coords])
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
+# رابط کاربری Streamlit
 st.header("🌍 Define Land by Polygon Coordinates (Lat/Lon → Meters)")
 
 with st.expander("➕ Enter Land Polygon Coordinates (Longitude, Latitude)"):
@@ -281,9 +283,11 @@ with st.expander("➕ Enter Land Polygon Coordinates (Longitude, Latitude)"):
         lon_coords.append(lon)
         lat_coords.append(lat)
 
+    # بستن خودکار پلیگون
     lon_coords.append(lon_coords[0])
     lat_coords.append(lat_coords[0])
 
+    # تبدیل به مختصات متری
     lat0 = lat_coords[0]
     lon0 = lon_coords[0]
 
@@ -303,6 +307,7 @@ if validate_polygon(land_coords):
     land_polygon_area = polygon_area(land_coords)
     st.write(f"📐 Land Area: {land_polygon_area:.1f} m²")
 
+    # نمایش پلیگون
     fig_poly, ax_poly = plt.subplots()
     land_array = np.array(land_coords)
     ax_poly.plot(land_array[:, 0], land_array[:, 1], 'o-', label="Land Boundary")
@@ -313,6 +318,7 @@ if validate_polygon(land_coords):
     ax_poly.axis('equal')
     st.pyplot(fig_poly)
 
+    # تنظیمات مساحت قابل استفاده
     st.subheader("🏗️ Land Usable Area Settings (Polygon Based)")
 
     use_percentage_poly = st.checkbox("Use Usable Land Percentage for Polygon (%)", value=True, key="poly_percent")
@@ -331,18 +337,19 @@ if validate_polygon(land_coords):
     access_path_width = st.number_input("Access Path Width (m)", min_value=0.0, value=3.0, step=0.5)
     rows_between_paths = st.number_input("Rows Between Access Paths", min_value=1, value=10, step=1)
 
+    # فرض کنیم متغیرهای لازم برای محاسبه از قبل موجودن:
+    panel_width = 1.1  # عرض پنل مثلا
+    panel_height = 2.2  # ارتفاع پنل مثلا
+    panel_gap = 0.5  # فاصله بین پنل‌ها
+    selected_spacing = 5.0  # فاصله بین ردیف‌ها
+    panel_capacity_kw = 0.5  # ظرفیت هر پنل کیلووات
+    pr = 0.75  # Performance Ratio
+    irradiance = 1800  # تابش سالانه kWh/m²
+    panel_length = 2.2  # طول فیزیکی پنل
+    panel_tilt = 25  # زاویه نصب پنل
+    lat = lat0  # استفاده از lat مبنا
 
-    panel_width = 1.1  
-    panel_height = 2.2  
-    panel_gap = 0.5 
-    selected_spacing = 5.0  
-    panel_capacity_kw = 0.5 
-    pr = 0.75  
-    irradiance = 1800  
-    panel_length = 2.2  
-    panel_tilt = 25  
-    lat = lat0  
-
+    # توابع لازم برای سایه
     def shadow_length(tilt, length, angle):
         return length * math.sin(math.radians(tilt)) / math.tan(math.radians(angle))
 
@@ -353,8 +360,9 @@ if validate_polygon(land_coords):
         if spacing == 0:
             return 0
         loss = shadow / spacing
-        return min(max(loss, 0), 0.2)  
+        return min(max(loss, 0), 0.2)  # حداکثر ۲۰٪
 
+    # محاسبات خروجی
     st.subheader("📊 Output Summary for Polygon Land")
 
     panel_spacing_width_poly = panel_width + panel_gap
