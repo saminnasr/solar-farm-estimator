@@ -255,9 +255,9 @@ with st.expander("➕ Enter Land Polygon Coordinates (X, Y)"):
     for i in range(num_points):
         colx, coly = st.columns(2)
         with colx:
-            x = st.number_input(f"X coordinate {i+1}", key=f"x_{i}")
+            x = st.number_input(f"X coordinate {i+1}", key=f"x_{i}", format="%.4f", step=0.0001)
         with coly:
-            y = st.number_input(f"Y coordinate {i+1}", key=f"y_{i}")
+            y = st.number_input(f"Y coordinate {i+1}", key=f"y_{i}",format="%.4f", step=0.0001)
         x_coords.append(x)
         y_coords.append(y)
 
@@ -286,7 +286,7 @@ land_coords = list(zip(x_coords, y_coords))
 if validate_polygon(land_coords):
     st.success("✅ Polygon coordinates are valid.")
     land_polygon_area = polygon_area(land_coords)
-    st.write(f"📐 Land Area: {land_polygon_area:.1f} m²")
+    st.write(f"📐 Land Area: {land_polygon_area:.2f} m²")
 
     fig_poly, ax_poly = plt.subplots()
     land_array = np.array(land_coords)
