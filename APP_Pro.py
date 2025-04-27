@@ -320,7 +320,7 @@ if validate_polygon(land_coords):
     use_percentage_poly = st.checkbox("Use Usable Land Percentage for Polygon (%)", value=True, key="poly_percent")
     use_manual_area_poly = st.checkbox("Or Enter Usable Land Area for Polygon Directly (m²)", key="poly_manual")
 
-    effective_land_area_poly = land_polygon_area  # Default
+    effective_land_area_poly = land_polygon_area
 
     if use_percentage_poly:
         land_usage_percent_poly = st.number_input("Usable Land Percentage (%) for Polygon", min_value=50, max_value=100, value=90, key="poly_percent_val")
@@ -350,9 +350,8 @@ if validate_polygon(land_coords):
         if spacing == 0:
             return 0
         loss = shadow / spacing
-        return min(max(loss, 0), 0.2)  # حداکثر ۲۰٪
+        return min(max(loss, 0), 0.2)  
 
-    # محاسبات خروجی
     st.subheader("📊 Output Summary for Polygon Land")
 
     panel_spacing_width_poly = panel_width + panel_gap
@@ -384,26 +383,21 @@ if validate_polygon(land_coords):
 
 
 
-# ساخت پلیگون زمین
 land_polygon = Polygon(list(zip(x_coords, y_coords)))
 
 fig_layout, ax_layout = plt.subplots()
 
-# رسم زمین
 land_array = np.array(list(zip(x_coords, y_coords)))
 ax_layout.plot(land_array[:, 0], land_array[:, 1], 'o-', label="Land Boundary")
 ax_layout.fill(land_array[:, 0], land_array[:, 1], alpha=0.1)
 
-# مرکز زمین
 center_x = (max(x_coords) + min(x_coords)) / 2
 center_y = (max(y_coords) + min(y_coords)) / 2
 
-# مشخصات پنل و محدودیت‌ها
 panel_spacing_width = panel_width + panel_gap
 area_per_panel = selected_spacing * panel_spacing_width
 max_panels_allowed = int(effective_land_area_poly / area_per_panel)
 
-# شروع چیدن
 panel_count_inside = 0
 row_idx = 0
 
@@ -413,11 +407,9 @@ while True:
     y_offset = (row_idx // 2) * selected_spacing * (-1 if row_idx % 2 else 1) + access_path_offset * (-1 if row_idx % 2 else 1)
     current_y = center_y + y_offset
 
-    # اگر از زمین بیرون زدیم، قطع کنیم
     if current_y < min(y_coords) or current_y + panel_height > max(y_coords):
         break  
 
-    # --- محاسبه تخمینی تعداد پنل این ردیف ---
     estimated_panels_in_row = 0
     temp_col_idx = 0
     while True:
@@ -434,11 +426,9 @@ while True:
 
         temp_col_idx += 1
 
-    # اگر پنل‌های باقی مانده کمتر از نصف ظرفیت این ردیف بود، ردیف جدید شروع نکن
     if (max_panels_allowed - panel_count_inside) < (estimated_panels_in_row / 2):
         break
 
-    # --- چیدن پنل واقعی در این ردیف ---
     col_idx = 0
     while True:
         x_offset = (col_idx // 2) * panel_spacing_width * (-1 if col_idx % 2 else 1)
@@ -471,20 +461,17 @@ while True:
 
     row_idx += 1
 
-# --- پایان چیدن ---
 
-# رسم نهایی
 ax_layout.set_xlabel("X (m)")
 ax_layout.set_ylabel("Y (m)")
 ax_layout.set_title("Perfect Centered Symmetric Panel Layout with Access Paths")
 ax_layout.set_aspect('equal')
 st.pyplot(fig_layout)
 
-# محاسبات نهایی
 system_capacity_poly_kw_actual = panel_count_inside * panel_capacity_kw
 yield_per_panel_poly = irradiance * panel_capacity_kw * pr * (1 - shading_loss_poly)
 total_energy_poly_actual = yield_per_panel_poly * panel_count_inside
 
-st.success(f"✅ Actual Panels Placed (Perfect Centered + Access Paths): {panel_count_inside}")
+st.success(f"✅ Actual Panels Placed : {panel_count_inside}")
 st.write(f"⚡ System Capacity: {system_capacity_poly_kw_actual:.2f} kW")
 st.write(f"⚡ Estimated Annual Energy Output: {total_energy_poly_actual:,.0f} kWh/year")
