@@ -386,59 +386,44 @@ if validate_polygon(land_coords):
 from shapely.geometry import Polygon, Point
 
 # 1. ساخت پلیگون زمین
+# ساخت پلیگون زمین
 land_polygon = Polygon(list(zip(x_coords, y_coords)))
 
-# 2. ساخت فریم رسم
 fig_layout, ax_layout = plt.subplots()
 
+# ترسیم مرز زمین
 land_array = np.array(list(zip(x_coords, y_coords)))
 ax_layout.plot(land_array[:, 0], land_array[:, 1], 'o-', label="Land Boundary")
 ax_layout.fill(land_array[:, 0], land_array[:, 1], alpha=0.1)
 
-# 3. مرکز زمین
+# 1. مرکز زمین
 center_x = (max(x_coords) + min(x_coords)) / 2
 center_y = (max(y_coords) + min(y_coords)) / 2
 
-# 4. مشخصات پنل
+# 2. پنل مشخصات
 panel_spacing_width = panel_width + panel_gap
 area_per_panel = selected_spacing * panel_spacing_width
-
-# 5. تعداد پنل مجاز
 max_panels_allowed = int(effective_land_area_poly / area_per_panel)
 
-# 6. تعداد ستون‌ها و ردیف‌ها قبل از اصلاح
-possible_columns = int((max(x_coords) - min(x_coords)) / panel_spacing_width)
-possible_rows = int((max(y_coords) - min(y_coords)) / selected_spacing)
+# 3. grid resolution
+x_min, x_max = min(x_coords), max(x_coords)
+y_min, y_max = min(y_coords), max(y_coords)
 
-# 7. تعداد واقعی ستون و ردیف براساس usable area
-total_possible_panels = possible_columns * possible_rows
+# 4. شروع چیدن دقیق
+panel_count_inside = 0
 
-if total_possible_panels == 0:
-    st.error("❌ زمین خیلی کوچک است یا فاصله‌ها خیلی زیادند.")
-else:
-    usage_ratio = min(max_panels_allowed / total_possible_panels, 1)
+x = x_min
+while x < x_max:
+    y = y_min
+    while y < y_max:
+        # تعریف یک پنل کامل (مستطیل)
+        panel_candidate = box(x, y, x + panel_width, y + panel_height)
 
-    columns_to_place = int(possible_columns * (usage_ratio ** 0.5))
-    rows_to_place = int(possible_rows * (usage_ratio ** 0.5))
-
-    panel_count_inside = 0
-
-    start_x = center_x - (columns_to_place * panel_spacing_width) / 2
-    start_y = center_y - (rows_to_place * selected_spacing) / 2
-
-    for row in range(rows_to_place):
-        y_pos = start_y + row * selected_spacing
-
-        for col in range(columns_to_place):
-            x_pos = start_x + col * panel_spacing_width
-
-            center_panel_x = x_pos + panel_width / 2
-            center_panel_y = y_pos + panel_height / 2
-            panel_center = Point(center_panel_x, center_panel_y)
-
-            if land_polygon.contains(panel_center):
+        # چک کنیم کل پنل داخل زمین باشه
+        if land_polygon.contains(panel_candidate):
+            if panel_count_inside < max_panels_allowed:
                 panel_rect = patches.Rectangle(
-                    (x_pos, y_pos),
+                    (x, y),
                     panel_width,
                     panel_height,
                     edgecolor='black',
@@ -447,24 +432,24 @@ else:
                 )
                 ax_layout.add_patch(panel_rect)
                 panel_count_inside += 1
-
-            if panel_count_inside >= max_panels_allowed:
+            else:
                 break
-        if panel_count_inside >= max_panels_allowed:
-            break
 
-    # 8. رسم شکل
-    ax_layout.set_xlabel("X (m)")
-    ax_layout.set_ylabel("Y (m)")
-    ax_layout.set_title("Centered Panel Layout Inside Polygon (Usable Area Applied)")
-    ax_layout.set_aspect('equal')
-    st.pyplot(fig_layout)
+        y += selected_spacing
+    x += panel_spacing_width
 
-    # 9. محاسبات واقعی
-    system_capacity_poly_kw_actual = panel_count_inside * panel_capacity_kw
-    yield_per_panel_poly = irradiance * panel_capacity_kw * pr * (1 - shading_loss_poly)
-    total_energy_poly_actual = yield_per_panel_poly * panel_count_inside
+# 5. رسم نهایی
+ax_layout.set_xlabel("X (m)")
+ax_layout.set_ylabel("Y (m)")
+ax_layout.set_title("Perfect Panel Layout Inside Polygon")
+ax_layout.set_aspect('equal')
+st.pyplot(fig_layout)
 
-    st.success(f"✅ Actual Panels Placed: {panel_count_inside}")
-    st.write(f"⚡ Updated System Capacity: {system_capacity_poly_kw_actual:.2f} kW")
-    st.write(f"⚡ Updated Estimated Annual Energy Output: {total_energy_poly_actual:,.0f} kWh/year")
+# 6. خروجی واقعی
+system_capacity_poly_kw_actual = panel_count_inside * panel_capacity_kw
+yield_per_panel_poly = irradiance * panel_capacity_kw * pr * (1 - shading_loss_poly)
+total_energy_poly_actual = yield_per_panel_poly * panel_count_inside
+
+st.success(f"✅ Actual Panels Inside Polygon (Perfect Fit): {panel_count_inside}")
+st.write(f"⚡ System Capacity: {system_capacity_poly_kw_actual:.2f} kW")
+st.write(f"⚡ Estimated Annual Energy Output: {total_energy_poly_actual:,.0f} kWh/year")
