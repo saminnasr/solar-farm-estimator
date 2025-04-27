@@ -282,11 +282,20 @@ def polygon_area(coords):
     return 0.5 * np.abs(np.dot(x,np.roll(y,1)) - np.dot(y,np.roll(x,1)))
 
 land_coords = list(zip(x_coords, y_coords))
-
+def latlon_to_meters(lat, lon, ref_lat):
+    lat_m = lat * 111320
+    lon_m = lon * 111320 * math.cos(math.radians(ref_lat))
+    return lon_m, lat_m
+    
 if validate_polygon(land_coords):
     st.success("✅ Polygon coordinates are valid.")
-    land_polygon_area = polygon_area(land_coords)
-    st.write(f"📐 Land Area: {land_polygon_area:.1f} m²")
+    # land_polygon_area = polygon_area(land_coords)
+    ref_latitude = sum(x_coords) / len(x_coords)  
+    land_coords_meters = [latlon_to_meters(lat, lon, ref_latitude) for lat, lon in land_coords]
+    land_polygon_area = polygon_area(land_coords_meters)
+    st.write(f"📐 Land Area: {land_polygon_area:,.1f} m²")
+    
+    # st.write(f"📐 Land Area: {land_polygon_area:.1f} m²")
 
     fig_poly, ax_poly = plt.subplots()
     land_array = np.array(land_coords)
