@@ -388,7 +388,6 @@ from shapely.geometry import Polygon, Point
 # ساخت پلیگون زمین
 land_polygon = Polygon(list(zip(x_coords, y_coords)))
 
-# ساخت شکل و محور
 fig_layout, ax_layout = plt.subplots()
 
 # ترسیم مرز زمین
@@ -396,29 +395,27 @@ land_array = np.array(list(zip(x_coords, y_coords)))
 ax_layout.plot(land_array[:, 0], land_array[:, 1], 'o-', label="Land Boundary")
 ax_layout.fill(land_array[:, 0], land_array[:, 1], alpha=0.1)
 
-# شروع چیدن پنل‌ها
 start_x = min(x_coords)
 start_y = min(y_coords)
 
 panel_count_inside = 0
 
+# 👉 اضافه کردن محدودیت بر اساس مساحت قابل استفاده
+area_per_panel_poly = selected_spacing * (panel_width + panel_gap)
+max_possible_panels = int(effective_land_area_poly / area_per_panel_poly)
 
 for row_idx in range(adjusted_rows_possible):
-    # محاسبه موقعیت y هر ردیف با درنظرگرفتن مسیر دسترسی
     y_pos = start_y + row_idx * selected_spacing + (row_idx // rows_between_paths) * access_path_width
-
     for col_idx in range(panels_per_row_poly):
-        # محاسبه موقعیت x هر پنل
-        x_pos = start_x + col_idx * (panel_width + panel_gap)
+        if panel_count_inside >= max_possible_panels:
+            break  # اگر به حداکثر مجاز رسیدیم، دیگه پنل جدید نچین
 
-        # پیدا کردن مرکز پنل
+        x_pos = start_x + col_idx * (panel_width + panel_gap)
         center_x = x_pos + panel_width / 2
         center_y = y_pos + panel_height / 2
         panel_center = Point(center_x, center_y)
 
-        # چک کردن اینکه مرکز پنل داخل زمین باشه
         if land_polygon.contains(panel_center):
-            # اضافه کردن پنل به شکل
             panel_rect = patches.Rectangle(
                 (x_pos, y_pos),
                 panel_width,
@@ -430,20 +427,17 @@ for row_idx in range(adjusted_rows_possible):
             ax_layout.add_patch(panel_rect)
             panel_count_inside += 1
 
-# بعد از چیدن همه پنل‌ها، یکبار رسم کن
 ax_layout.set_xlabel("X (m)")
 ax_layout.set_ylabel("Y (m)")
-ax_layout.set_title("Panel Layout Inside Polygon")
+ax_layout.set_title("Panel Layout Inside Polygon (Adjusted for Usable Area)")
 ax_layout.set_aspect('equal')
 st.pyplot(fig_layout)
 
-# نمایش تعداد واقعی پنل‌هایی که قرار داده شده
-st.success(f"✅ Actual Panels Placed Inside Polygon: {panel_count_inside}")
-
-# ظرفیت واقعی سیستم و انرژی واقعی هم اینجا آپدیت کن:
+# خروجی نهایی واقعی
 system_capacity_poly_kw_actual = panel_count_inside * panel_capacity_kw
 yield_per_panel_poly = irradiance * panel_capacity_kw * pr * (1 - shading_loss_poly)
 total_energy_poly_actual = yield_per_panel_poly * panel_count_inside
 
+st.success(f"✅ Actual Panels Inside Polygon (Usable Area Considered): {panel_count_inside}")
 st.write(f"⚡ Updated System Capacity: {system_capacity_poly_kw_actual:.2f} kW")
 st.write(f"⚡ Updated Estimated Annual Energy Output: {total_energy_poly_actual:,.0f} kWh/year")
