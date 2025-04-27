@@ -385,7 +385,6 @@ if validate_polygon(land_coords):
 # ساخت شکل و محور
 from shapely.geometry import Polygon, Point
 
-# ساخت پلیگون زمین
 land_polygon = Polygon(list(zip(x_coords, y_coords)))
 
 fig_layout, ax_layout = plt.subplots()
@@ -398,46 +397,59 @@ ax_layout.fill(land_array[:, 0], land_array[:, 1], alpha=0.1)
 start_x = min(x_coords)
 start_y = min(y_coords)
 
+# 1. محاسبه مساحت هر پنل
+panel_spacing_width_poly = panel_width + panel_gap
+area_per_panel = selected_spacing * panel_spacing_width_poly
+
+# 2. محاسبه تعداد ماکزیمم پنل براساس مساحت قابل استفاده
+max_panels_allowed = int(effective_land_area_poly / area_per_panel)
+
+# شروع چیدن
 panel_count_inside = 0
 
-# 👉 اضافه کردن محدودیت بر اساس مساحت قابل استفاده
-area_per_panel_poly = selected_spacing * (panel_width + panel_gap)
-max_possible_panels = int(effective_land_area_poly / area_per_panel_poly)
-
-for row_idx in range(adjusted_rows_possible):
+for row_idx in range(1000):  # به تعداد زیاد که کنترل بشه
     y_pos = start_y + row_idx * selected_spacing + (row_idx // rows_between_paths) * access_path_width
-    for col_idx in range(panels_per_row_poly):
-        if panel_count_inside >= max_possible_panels:
-            break  # اگر به حداکثر مجاز رسیدیم، دیگه پنل جدید نچین
 
-        x_pos = start_x + col_idx * (panel_width + panel_gap)
+    for col_idx in range(1000):  # به تعداد زیاد که کنترل بشه
+        x_pos = start_x + col_idx * panel_spacing_width_poly
+
+        # مرکز پنل
         center_x = x_pos + panel_width / 2
         center_y = y_pos + panel_height / 2
         panel_center = Point(center_x, center_y)
 
         if land_polygon.contains(panel_center):
-            panel_rect = patches.Rectangle(
-                (x_pos, y_pos),
-                panel_width,
-                panel_height,
-                edgecolor='black',
-                facecolor='green',
-                alpha=0.6
-            )
-            ax_layout.add_patch(panel_rect)
-            panel_count_inside += 1
+            if panel_count_inside < max_panels_allowed:
+                panel_rect = patches.Rectangle(
+                    (x_pos, y_pos),
+                    panel_width,
+                    panel_height,
+                    edgecolor='black',
+                    facecolor='green',
+                    alpha=0.6
+                )
+                ax_layout.add_patch(panel_rect)
+                panel_count_inside += 1
+            else:
+                break  # اگر به حد مجاز رسیدیم دیگه نچین
 
+    if panel_count_inside >= max_panels_allowed:
+        break  # از حلقه بیرون بیا وقتی به حد مجاز رسیدی
+
+# پایان چیدن
+
+# 3. رسم شکل نهایی
 ax_layout.set_xlabel("X (m)")
 ax_layout.set_ylabel("Y (m)")
-ax_layout.set_title("Panel Layout Inside Polygon (Adjusted for Usable Area)")
+ax_layout.set_title("Panel Layout Inside Polygon (Usable Area Applied)")
 ax_layout.set_aspect('equal')
 st.pyplot(fig_layout)
 
-# خروجی نهایی واقعی
+# 4. محاسبات واقعی نهایی
 system_capacity_poly_kw_actual = panel_count_inside * panel_capacity_kw
 yield_per_panel_poly = irradiance * panel_capacity_kw * pr * (1 - shading_loss_poly)
 total_energy_poly_actual = yield_per_panel_poly * panel_count_inside
 
-st.success(f"✅ Actual Panels Inside Polygon (Usable Area Considered): {panel_count_inside}")
-st.write(f"⚡ Updated System Capacity: {system_capacity_poly_kw_actual:.2f} kW")
-st.write(f"⚡ Updated Estimated Annual Energy Output: {total_energy_poly_actual:,.0f} kWh/year")
+st.success(f"✅ Actual Panels Inside Polygon (with Usable Area): {panel_count_inside}")
+st.write(f"⚡ System Capacity: {system_capacity_poly_kw_actual:.2f} kW")
+st.write(f"⚡ Estimated Annual Energy Output: {total_energy_poly_actual:,.0f} kWh/year")
