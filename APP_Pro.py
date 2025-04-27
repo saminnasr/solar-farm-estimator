@@ -287,15 +287,12 @@ def latlon_to_meters(lat, lon, ref_lat):
     lon_m = lon * 111320 * math.cos(math.radians(ref_lat))
     return lon_m, lat_m
     
+land_coords = list(zip(x_coords, y_coords))
+
 if validate_polygon(land_coords):
     st.success("✅ Polygon coordinates are valid.")
-    # land_polygon_area = polygon_area(land_coords)
-    ref_latitude = sum(x_coords) / len(x_coords)  
-    land_coords_meters = [latlon_to_meters(lat, lon, ref_latitude) for lat, lon in land_coords]
-    land_polygon_area = polygon_area(land_coords_meters)
-    st.write(f"📐 Land Area: {land_polygon_area:,.1f} m²")
-    
-    # st.write(f"📐 Land Area: {land_polygon_area:.1f} m²")
+    land_polygon_area = polygon_area(land_coords)
+    st.write(f"📐 Land Area: {land_polygon_area:.1f} m²")
 
     fig_poly, ax_poly = plt.subplots()
     land_array = np.array(land_coords)
