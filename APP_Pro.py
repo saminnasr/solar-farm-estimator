@@ -402,7 +402,6 @@ panel_count_inside = 0
 row_idx = 0
 
 while True:
-    # محاسبه Y برای هر ردیف (با Access Path ها)
     access_path_offset = (row_idx // rows_between_paths) * access_path_width
     y_offset = (row_idx // 2) * selected_spacing * (-1 if row_idx % 2 else 1) + access_path_offset * (-1 if row_idx % 2 else 1)
     current_y = center_y + y_offset
