@@ -280,7 +280,7 @@ with st.expander("➕ Enter Land Polygon Coordinates (Longitude, Latitude)"):
         with colx:
             lon = st.number_input(f"Longitude {i+1}", key=f"lon_{i}", format="%.4f", step=0.0001)
         with coly:
-            lat = st.number_input(f"Latitude {i+1}", key=f"lat_{i}", format="%.4f", 0.0001)
+            lat = st.number_input(f"Latitude {i+1}", key=f"lat_{i}", format="%.4f", step=0.0001)
         lon_coords.append(lon)
         lat_coords.append(lat)
 
