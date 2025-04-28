@@ -278,9 +278,9 @@ with st.expander("➕ Enter Land Polygon Coordinates (Longitude, Latitude)"):
     for i in range(num_points):
         colx, coly = st.columns(2)
         with colx:
-            lon = st.number_input(f"Longitude {i+1}", key=f"lon_{i}", format="%.6f", step=0.00001)
+            lon = st.number_input(f"Longitude {i+1}", key=f"lon_{i}", format="%.4f", step=0.0001)
         with coly:
-            lat = st.number_input(f"Latitude {i+1}", key=f"lat_{i}", format="%.6f", 0.00001)
+            lat = st.number_input(f"Latitude {i+1}", key=f"lat_{i}", format="%.4f", 0.0001)
         lon_coords.append(lon)
         lat_coords.append(lat)
 
