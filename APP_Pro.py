@@ -117,18 +117,18 @@ def frange(start, stop, step):
         
 # ----------------------------- USABLE LAND SETTINGS -----------------------------
 
-# st.subheader("🏗️ Land Usable Area Settings")
+st.subheader("🏗️ Land Usable Area Settings")
 
-# use_percentage = st.checkbox("Use Usable Land Percentage (%)", value=True)
-# use_manual_area = st.checkbox("Or Enter Usable Land Area Directly (m²)")
+use_percentage = st.checkbox("Use Usable Land Percentage (%)", value=True)
+use_manual_area = st.checkbox("Or Enter Usable Land Area Directly (m²)")
 
-# effective_land_area = land_length * land_width  # Default
+effective_land_area = land_length * land_width  # Default
 
-# if use_percentage:
-#     land_usage_percent = st.number_input("Usable Land Percentage (%)", min_value=50, max_value=100, value=90)
-#     effective_land_area = (land_length * land_width) * (land_usage_percent / 100)
-# elif use_manual_area:
-#     effective_land_area = st.number_input("Effective Land Area (m²)", value=int(land_length * land_width * 0.9))
+if use_percentage:
+    land_usage_percent = st.number_input("Usable Land Percentage (%)", min_value=50, max_value=100, value=90)
+    effective_land_area = (land_length * land_width) * (land_usage_percent / 100)
+elif use_manual_area:
+    effective_land_area = st.number_input("Effective Land Area (m²)", value=int(land_length * land_width * 0.9))
 
 # ----------------------------- COMPUTATION -----------------------------
 
