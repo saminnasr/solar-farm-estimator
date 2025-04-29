@@ -387,6 +387,37 @@ else:
     row_spacing = st.number_input("Row Spacing (m)", value=3.0, step=0.1)
 
     panel_spacing_width = panel_width + panel_gap
+     usable_minx, usable_miny, usable_maxx, usable_maxy = usable_polygon.bounds
+    total_height = usable_maxy - usable_miny
+    total_width = usable_maxx - usable_minx
+
+    possible_rows = int(total_height // row_spacing)
+    panels_per_row = int(total_width // panel_spacing_width)
+    total_panels_possible = possible_rows * panels_per_row
+
+    st.write(f"✅ Possible Rows: {possible_rows}")
+    st.write(f"✅ Panels per Row: {panels_per_row}")
+
+    fig_layout, ax_layout = plt.subplots()
+    ax_layout.plot(usable_array[:,0], usable_array[:,1], 'o-', label="Usable Area")
+    ax_layout.fill(usable_array[:,0], usable_array[:,1], alpha=0.1, color='green')
+
+    panel_count = 0
+    for row in range(possible_rows):
+        y = usable_miny + row * row_spacing
+        for col in range(panels_per_row):
+            x = usable_minx + col * panel_spacing_width
+            panel = box(x, y, x + panel_width, y + panel_height)
+            if usable_polygon.contains(panel):
+                ax_layout.add_patch(patches.Rectangle((x, y), panel_width, panel_height, edgecolor='black', facecolor='blue', alpha=0.6))
+                panel_count += 1
+
+    ax_layout.set_title("Perfect Grid Layout Based on Calculated Rows")
+    ax_layout.set_aspect('equal')
+    st.pyplot(fig_layout)
+
+    st.success(f"✅ Panels Placed: {panel_count}")
+
     area_per_panel = row_spacing * panel_spacing_width
     max_panels = int(effective_land_area_poly / area_per_panel)
 
@@ -401,35 +432,7 @@ else:
     panel_count = 0
     row_idx = 0
 
-    while True:
-        y_offset = (row_idx // 2) * row_spacing * (-1 if row_idx % 2 == 0 else 1)
-        current_y = center_y + y_offset
+    usable_minx, usable_miny, usable_maxx, usable_maxy = usable_polygon.bounds
 
-        if current_y + panel_height > bounds[3] or current_y < bounds[1]:
-            break
-
-        col_idx = 0
-        while True:
-            x_offset = (col_idx // 2) * panel_spacing_width * (-1 if col_idx % 2 == 0 else 1)
-            current_x = center_x + x_offset
-
-            if current_x + panel_width > bounds[2] or current_x < bounds[0]:
-                break
-
-            panel = box(current_x, current_y, current_x + panel_width, current_y + panel_height)
-            if usable_polygon.contains(panel):
-                ax_layout.add_patch(patches.Rectangle((current_x, current_y), panel_width, panel_height, edgecolor='black', facecolor='blue', alpha=0.6))
-                panel_count += 1
-            if panel_count >= max_panels:
-                break
-            col_idx += 1
-
-        if panel_count >= max_panels:
-            break
-        row_idx += 1
-
-    ax_layout.set_title("Centered Symmetric Panel Layout")
-    ax_layout.set_aspect('equal')
-    st.pyplot(fig_layout)
 
     st.success(f"✅ Panels Placed: {panel_count}")
