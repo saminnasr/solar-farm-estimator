@@ -348,7 +348,7 @@ else:
             st.warning("⚠️ Geometry error in buffering usable area. Using full land.")
 
     elif use_manual_area_poly:
-        effective_land_area_poly = st.number_input("Effective Land Area (m²)", value=int(land_polygon_area * 0.9))
+        effective_land_area_poly = st.number_input("Effective Land Area (m²)", value=int(land_polygon_area * 0.9), key="polygon_effective_area")
 
     st.subheader("🗺️ Land and Usable Area Visualization")
     fig_poly, ax_poly = plt.subplots()
