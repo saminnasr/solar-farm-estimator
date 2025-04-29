@@ -262,14 +262,27 @@ def polygon_area(coords):
     y = np.array([p[1] for p in coords])
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
-st.header("🌍 Define Land by Polygon Coordinates")
+from shapely.errors import TopologicalError
+import math
+
+st.header("🌍 Define Land by Polygon Coordinates (Geographic)")
+
+# ----------------------------- POLYGON LAND INPUT (GEOGRAPHIC) -----------------------------
+
+def latlon_to_meters(lat, lon, lat0, lon0):
+    R = 6378137
+    dlat = np.radians(lat - lat0)
+    dlon = np.radians(lon - lon0)
+    x = R * dlon * np.cos(np.radians(lat0))
+    y = R * dlat
+    return x, y
 
 with st.expander("➕ Enter Land Polygon Coordinates (Longitude, Latitude)"):
     st.markdown("""
     ➡️ Define your land boundary by entering Longitude (X) and Latitude (Y) separately.
     - Enter points in order (first and last point will automatically close).
     """)
-    
+
     num_points = st.number_input("Number of Points (Minimum 3)", min_value=3, value=4, step=1)
 
     lon_coords = []
@@ -278,42 +291,32 @@ with st.expander("➕ Enter Land Polygon Coordinates (Longitude, Latitude)"):
     for i in range(num_points):
         colx, coly = st.columns(2)
         with colx:
-            lon = st.number_input(f"Longitude {i+1}", key=f"lon_{i}", format="%.4f", step=0.0001)
+            lon = st.number_input(f"Longitude {i+1}", key=f"lon_{i}", format="%.6f", step=0.00001)
         with coly:
-            lat = st.number_input(f"Latitude {i+1}", key=f"lat_{i}", format="%.4f", step=0.0001)
+            lat = st.number_input(f"Latitude {i+1}", key=f"lat_{i}", format="%.6f", step=0.00001)
         lon_coords.append(lon)
         lat_coords.append(lat)
 
     lon_coords.append(lon_coords[0])
     lat_coords.append(lat_coords[0])
 
-    lat0 = lat_coords[0]
-    lon0 = lon_coords[0]
+    lat0, lon0 = lat_coords[0], lon_coords[0]
 
     x_coords = []
     y_coords = []
-
     for lon, lat in zip(lon_coords, lat_coords):
         x_m, y_m = latlon_to_meters(lat, lon, lat0, lon0)
         x_coords.append(x_m)
         y_coords.append(y_m)
 
-land_coords = list(zip(x_coords, y_coords))
+original_polygon = Polygon(list(zip(x_coords, y_coords)))
 
-if validate_polygon(land_coords):
+if not original_polygon.is_valid or original_polygon.is_empty or len(original_polygon.exterior.coords) < 4:
+    st.error("❌ Coordinates must form a closed polygon with at least 3 sides.")
+else:
+    land_polygon_area = original_polygon.area
     st.success("✅ Polygon coordinates are valid.")
-    land_polygon_area = polygon_area(land_coords)
     st.write(f"📐 Land Area: {land_polygon_area:.1f} m²")
-
-    fig_poly, ax_poly = plt.subplots()
-    land_array = np.array(land_coords)
-    ax_poly.plot(land_array[:, 0], land_array[:, 1], 'o-', label="Land Boundary")
-    ax_poly.fill(land_array[:, 0], land_array[:, 1], alpha=0.3)
-    ax_poly.set_xlabel("X (m)")
-    ax_poly.set_ylabel("Y (m)")
-    ax_poly.set_title("Land Polygon (Meters)")
-    ax_poly.axis('equal')
-    st.pyplot(fig_poly)
 
     st.subheader("🏗️ Land Usable Area Settings (Polygon Based)")
 
@@ -321,156 +324,111 @@ if validate_polygon(land_coords):
     use_manual_area_poly = st.checkbox("Or Enter Usable Land Area for Polygon Directly (m²)", key="poly_manual")
 
     effective_land_area_poly = land_polygon_area
+    usable_polygon = original_polygon
 
     if use_percentage_poly:
         land_usage_percent_poly = st.number_input("Usable Land Percentage (%) for Polygon", min_value=50, max_value=100, value=90, key="poly_percent_val")
         effective_land_area_poly = land_polygon_area * (land_usage_percent_poly / 100)
+
+        def compute_offset_for_target_area(polygon, target_percent, tolerance=0.01):
+            area_original = polygon.area
+            target_area = area_original * target_percent / 100
+            low = 0
+            high = min(polygon.bounds[2] - polygon.bounds[0], polygon.bounds[3] - polygon.bounds[1]) / 2
+            mid = 0
+            for _ in range(30):
+                mid = (low + high) / 2
+                shrunk = polygon.buffer(-mid)
+                if not shrunk.is_empty and shrunk.is_valid:
+                    area = shrunk.area
+                    if abs(area - target_area) / target_area < tolerance:
+                        return mid
+                    if area > target_area:
+                        low = mid
+                    else:
+                        high = mid
+            return mid
+
+        try:
+            offset = compute_offset_for_target_area(original_polygon, land_usage_percent_poly)
+            usable_polygon = original_polygon.buffer(-offset)
+            if usable_polygon.is_empty or not usable_polygon.is_valid:
+                usable_polygon = original_polygon
+                st.warning("⚠️ Usable polygon could not be created with requested percentage. Using full land.")
+        except TopologicalError:
+            st.warning("⚠️ Geometry error in buffering usable area. Using full land.")
+
     elif use_manual_area_poly:
         effective_land_area_poly = st.number_input("Effective Land Area (m²) for Polygon", value=int(land_polygon_area * 0.9), key="poly_manual_val")
 
-    st.subheader("🛣️ Define Access Path Settings")
+    st.subheader("🗺️ Land and Usable Area Visualization")
+    fig_poly, ax_poly = plt.subplots()
+    land_array = np.array(original_polygon.exterior.coords)
+    usable_array = np.array(usable_polygon.exterior.coords)
 
-    access_path_width = st.number_input("Access Path Width (m)", min_value=0.0, value=3.0, step=0.5)
-    rows_between_paths = st.number_input("Rows Between Access Paths", min_value=1, value=10, step=1)
+    ax_poly.plot(land_array[:,0], land_array[:,1], 'o-', label="Land Boundary")
+    ax_poly.fill(land_array[:,0], land_array[:,1], alpha=0.2)
+    ax_poly.plot(usable_array[:,0], usable_array[:,1], 'o-', color='green', label="Usable Area")
+    ax_poly.fill(usable_array[:,0], usable_array[:,1], alpha=0.3, color='green')
+    ax_poly.set_xlabel("X (m)")
+    ax_poly.set_ylabel("Y (m)")
+    ax_poly.set_title("Land and Usable Polygon")
+    ax_poly.axis('equal')
+    ax_poly.legend()
+    st.pyplot(fig_poly)
 
+    st.write(f"✅ Usable Area: {usable_polygon.area:.1f} m²")
 
-    lat = lat0 
+    st.subheader("📊 Panel Layout Inside Usable Area")
 
+    panel_width = st.number_input("Panel Width (m)", value=1.0, step=0.1)
+    panel_height = st.number_input("Panel Height (m)", value=2.0, step=0.1)
+    panel_gap = st.number_input("Gap Between Panels (m)", value=0.5, step=0.1)
+    row_spacing = st.number_input("Row Spacing (m)", value=3.0, step=0.1)
 
+    panel_spacing_width = panel_width + panel_gap
+    area_per_panel = row_spacing * panel_spacing_width
+    max_panels = int(effective_land_area_poly / area_per_panel)
 
+    bounds = usable_polygon.bounds
+    center_x = (bounds[0] + bounds[2]) / 2
+    center_y = (bounds[1] + bounds[3]) / 2
 
+    fig_layout, ax_layout = plt.subplots()
+    ax_layout.plot(usable_array[:,0], usable_array[:,1], 'o-', label="Usable Area")
+    ax_layout.fill(usable_array[:,0], usable_array[:,1], alpha=0.1, color='green')
 
-    def shadow_length(tilt, length, angle):
-        return length * math.sin(math.radians(tilt)) / math.tan(math.radians(angle))
+    panel_count = 0
+    row_idx = 0
 
-    def critical_solar_angle(latitude):
-        return 90 - latitude + 23.45
-
-    def estimate_shading_loss(spacing, shadow):
-        if spacing == 0:
-            return 0
-        loss = shadow / spacing
-        return min(max(loss, 0), 0.2)  
-
-    st.subheader("📊 Output Summary for Polygon Land")
-
-    panel_spacing_width_poly = panel_width + panel_gap
-    area_per_panel_poly = selected_spacing * panel_spacing_width_poly
-
-    panels_per_row_poly = math.floor((max(x_coords) - min(x_coords)) / (panel_width + panel_gap))
-    rows_possible_before_paths = math.floor((max(y_coords) - min(y_coords)) / selected_spacing)
-    num_access_paths = rows_possible_before_paths // rows_between_paths
-    total_space_for_paths = num_access_paths * access_path_width
-    adjusted_rows_possible = math.floor((max(y_coords) - min(y_coords) - total_space_for_paths) / selected_spacing)
-
-    estimated_total_panels_poly = panels_per_row_poly * adjusted_rows_possible
-
-    shading_loss_poly = estimate_shading_loss(selected_spacing, shadow_length(panel_tilt, panel_length, critical_solar_angle(lat)))
-    yield_per_panel_poly = irradiance * panel_capacity_kw * pr * (1 - shading_loss_poly)
-    total_energy_poly = yield_per_panel_poly * estimated_total_panels_poly
-    system_capacity_poly_kw = estimated_total_panels_poly * panel_capacity_kw
-    gcr_poly = panel_width / selected_spacing if selected_spacing else None
-
-    st.write(f"✅ GCR: {gcr_poly:.2f}")
-    st.write(f"✅ Shading Loss: {shading_loss_poly * 100:.1f}%")
-    st.write(f"✅ Panels per Row: {panels_per_row_poly}")
-    st.write(f"✅ Total Rows: {adjusted_rows_possible}")
-    st.write(f"✅ Total Panels: {estimated_total_panels_poly}")
-    st.write(f"⚡ System Capacity: {system_capacity_poly_kw:.2f} kW")
-    st.write(f"⚡ Estimated Annual Energy Output: {total_energy_poly:,.0f} kWh/year")
-
-    st.subheader("🗺️ Layout Visualization")
-
-
-
-land_polygon = Polygon(list(zip(x_coords, y_coords)))
-
-fig_layout, ax_layout = plt.subplots()
-
-land_array = np.array(list(zip(x_coords, y_coords)))
-ax_layout.plot(land_array[:, 0], land_array[:, 1], 'o-', label="Land Boundary")
-ax_layout.fill(land_array[:, 0], land_array[:, 1], alpha=0.1)
-
-center_x = (max(x_coords) + min(x_coords)) / 2
-center_y = (max(y_coords) + min(y_coords)) / 2
-
-panel_spacing_width = panel_width + panel_gap
-area_per_panel = selected_spacing * panel_spacing_width
-max_panels_allowed = int(effective_land_area_poly / area_per_panel)
-
-panel_count_inside = 0
-row_idx = 0
-
-while True:
-    access_path_offset = (row_idx // rows_between_paths) * access_path_width
-    y_offset = (row_idx // 2) * selected_spacing * (-1 if row_idx % 2 else 1) + access_path_offset * (-1 if row_idx % 2 else 1)
-    current_y = center_y + y_offset
-
-    if current_y < min(y_coords) or current_y + panel_height > max(y_coords):
-        break  
-
-    estimated_panels_in_row = 0
-    temp_col_idx = 0
     while True:
-        x_offset = (temp_col_idx // 2) * panel_spacing_width * (-1 if temp_col_idx % 2 else 1)
-        current_x = center_x + x_offset
+        y_offset = (row_idx // 2) * row_spacing * (-1 if row_idx % 2 else 1)
+        current_y = center_y + y_offset
 
-        if current_x < min(x_coords) or current_x + panel_width > max(x_coords):
-            break
+        col_idx = 0
+        while True:
+            x_offset = (col_idx // 2) * panel_spacing_width * (-1 if col_idx % 2 else 1)
+            current_x = center_x + x_offset
 
-        panel_candidate = box(current_x, current_y, current_x + panel_width, current_y + panel_height)
-
-        if land_polygon.contains(panel_candidate):
-            estimated_panels_in_row += 1
-
-        temp_col_idx += 1
-
-    if (max_panels_allowed - panel_count_inside) < (estimated_panels_in_row / 2):
-        break
-
-    col_idx = 0
-    while True:
-        x_offset = (col_idx // 2) * panel_spacing_width * (-1 if col_idx % 2 else 1)
-        current_x = center_x + x_offset
-
-        if current_x < min(x_coords) or current_x + panel_width > max(x_coords):
-            break
-
-        panel_candidate = box(current_x, current_y, current_x + panel_width, current_y + panel_height)
-
-        if land_polygon.contains(panel_candidate):
-            if panel_count_inside < max_panels_allowed:
-                panel_rect = patches.Rectangle(
-                    (current_x, current_y),
-                    panel_width,
-                    panel_height,
-                    edgecolor='black',
-                    facecolor='green',
-                    alpha=0.6
-                )
-                ax_layout.add_patch(panel_rect)
-                panel_count_inside += 1
+            panel = box(current_x, current_y, current_x + panel_width, current_y + panel_height)
+            if usable_polygon.contains(panel):
+                ax_layout.add_patch(patches.Rectangle((current_x, current_y), panel_width, panel_height, edgecolor='black', facecolor='blue', alpha=0.6))
+                panel_count += 1
             else:
                 break
 
-        col_idx += 1
+            if panel_count >= max_panels:
+                break
+            col_idx += 1
 
-    if panel_count_inside >= max_panels_allowed:
-        break
+        if panel_count >= max_panels:
+            break
 
-    row_idx += 1
+        row_idx += 1
 
+    ax_layout.set_title("Centered Symmetric Panel Layout")
+    ax_layout.set_aspect('equal')
+    st.pyplot(fig_layout)
 
-ax_layout.set_xlabel("X (m)")
-ax_layout.set_ylabel("Y (m)")
-ax_layout.set_title("Perfect Centered Symmetric Panel Layout with Access Paths")
-ax_layout.set_aspect('equal')
-st.pyplot(fig_layout)
+    st.success(f"✅ Panels Placed: {panel_count}")
 
-system_capacity_poly_kw_actual = panel_count_inside * panel_capacity_kw
-yield_per_panel_poly = irradiance * panel_capacity_kw * pr * (1 - shading_loss_poly)
-total_energy_poly_actual = yield_per_panel_poly * panel_count_inside
-
-st.success(f"✅ Actual Panels Placed : {panel_count_inside}")
-st.write(f"⚡ System Capacity: {system_capacity_poly_kw_actual:.2f} kW")
-st.write(f"⚡ Estimated Annual Energy Output: {total_energy_poly_actual:,.0f} kWh/year")
