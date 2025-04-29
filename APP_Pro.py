@@ -409,3 +409,4 @@ else:
     st.pyplot(fig_layout)
 
     st.success(f"✅ Panels Placed: {panel_count}")
+
