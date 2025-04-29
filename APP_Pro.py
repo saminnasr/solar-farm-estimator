@@ -275,7 +275,7 @@ def latlon_to_meters(lat, lon, lat0, lon0):
     return x, y
 
 with st.expander("➕ Enter Land Polygon Coordinates (Longitude, Latitude)"):
-    num_points = st.number_input("Number of Points (Minimum 3)", min_value=3, value=4, step=1)
+    num_points = st.number_input("Number of Points (Minimum 3)", min_value=3, value=4, step=1, key="num_points_poly")
     lon_coords = []
     lat_coords = []
     for i in range(num_points):
@@ -309,13 +309,13 @@ else:
 
     st.subheader("🏗️ Land Usable Area Settings (Polygon Based)")
     use_percentage_poly = st.checkbox("Use Usable Land Percentage for Polygon (%)", value=True, key="use_percentage_poly")
-    use_manual_area_poly = st.checkbox("Or Enter Usable Land Area Directly (m²)", key="use_manual_area_poly_checkbox")
+    use_manual_area_poly = st.checkbox("Or Enter Usable Land Area Directly (m²)", key="use_manual_area_poly")
 
     effective_land_area_poly = land_polygon_area
     usable_polygon = original_polygon
 
     if use_percentage_poly:
-        land_usage_percent_poly = st.number_input("Usable Land Percentage (%)", min_value=50, max_value=100, value=90)
+        land_usage_percent_poly = st.number_input("Usable Land Percentage (%)", min_value=50, max_value=100, value=90, key="land_usage_percent_poly")
         effective_land_area_poly = land_polygon_area * (land_usage_percent_poly / 100)
 
         def compute_offset_for_target_area(polygon, target_percent, tolerance=0.01):
@@ -349,7 +349,7 @@ else:
     elif use_manual_area_poly:
         effective_land_area_poly = st.number_input("Effective Land Area (m²)", value=int(land_polygon_area * 0.9), key="polygon_effective_area")
 
-    st.subheader("🗺️ Land and Usable Area Visualization")
+    st.subheader("🗘️ Land and Usable Area Visualization")
     fig_poly, ax_poly = plt.subplots()
     land_array = np.array(original_polygon.exterior.coords)
     usable_array = np.array(usable_polygon.exterior.coords)
@@ -367,14 +367,13 @@ else:
     st.write(f"✅ Usable Area: {usable_polygon.area:.1f} m²")
 
     st.subheader("📊 Panel Layout Inside Usable Area")
-    panel_width = st.number_input("Panel Width (m)", value=1.0, step=0.1)
-    panel_height = st.number_input("Panel Height (m)", value=2.0, step=0.1)
-    panel_gap = st.number_input("Gap Between Panels (m)", value=0.5, step=0.1)
-    row_spacing = st.number_input("Row Spacing (m)", value=3.0, step=0.1)
+    panel_width = st.number_input("Panel Width (m)", value=1.0, step=0.1, key="panel_width_poly")
+    panel_height = st.number_input("Panel Height (m)", value=2.0, step=0.1, key="panel_height_poly")
+    panel_gap = st.number_input("Gap Between Panels (m)", value=0.5, step=0.1, key="panel_gap_poly")
+    row_spacing = st.number_input("Row Spacing (m)", value=3.0, step=0.1, key="row_spacing_poly")
 
     panel_spacing_width = panel_width + panel_gap
 
-    # محاسبه تعداد ردیف‌ها و ستون‌ها
     usable_minx, usable_miny, usable_maxx, usable_maxy = usable_polygon.bounds
     total_height = usable_maxy - usable_miny
     total_width = usable_maxx - usable_minx
@@ -406,7 +405,7 @@ else:
     ax_layout.set_aspect('equal')
     ax_layout.legend()
     st.pyplot(fig_layout)
-
+    
     st.success(f"✅ Panels Placed: {panel_count}")
 
 
