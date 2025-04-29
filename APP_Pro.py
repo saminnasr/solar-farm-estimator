@@ -267,8 +267,6 @@ import math
 
 st.header("🌍 Define Land by Polygon Coordinates (Geographic)")
 
-# ----------------------------- POLYGON LAND INPUT (GEOGRAPHIC) -----------------------------
-
 def latlon_to_meters(lat, lon, lat0, lon0):
     R = 6378137
     dlat = np.radians(lat - lat0)
@@ -278,16 +276,9 @@ def latlon_to_meters(lat, lon, lat0, lon0):
     return x, y
 
 with st.expander("➕ Enter Land Polygon Coordinates (Longitude, Latitude)"):
-    st.markdown("""
-    ➡️ Define your land boundary by entering Longitude (X) and Latitude (Y) separately.
-    - Enter points in order (first and last point will automatically close).
-    """)
-
     num_points = st.number_input("Number of Points (Minimum 3)", min_value=3, value=4, step=1)
-
     lon_coords = []
     lat_coords = []
-
     for i in range(num_points):
         colx, coly = st.columns(2)
         with colx:
@@ -299,7 +290,6 @@ with st.expander("➕ Enter Land Polygon Coordinates (Longitude, Latitude)"):
 
     lon_coords.append(lon_coords[0])
     lat_coords.append(lat_coords[0])
-
     lat0, lon0 = lat_coords[0], lon_coords[0]
 
     x_coords = []
@@ -319,15 +309,14 @@ else:
     st.write(f"📐 Land Area: {land_polygon_area:.1f} m²")
 
     st.subheader("🏗️ Land Usable Area Settings (Polygon Based)")
-
-    use_percentage_poly = st.checkbox("Use Usable Land Percentage for Polygon (%)", value=True, key="poly_percent")
-    use_manual_area_poly = st.checkbox("Or Enter Usable Land Area for Polygon Directly (m²)", key="poly_manual")
+    use_percentage_poly = st.checkbox("Use Usable Land Percentage for Polygon (%)", value=True)
+    use_manual_area_poly = st.checkbox("Or Enter Usable Land Area Directly (m²)")
 
     effective_land_area_poly = land_polygon_area
     usable_polygon = original_polygon
 
     if use_percentage_poly:
-        land_usage_percent_poly = st.number_input("Usable Land Percentage (%) for Polygon", min_value=50, max_value=100, value=90, key="poly_percent_val")
+        land_usage_percent_poly = st.number_input("Usable Land Percentage (%)", min_value=50, max_value=100, value=90)
         effective_land_area_poly = land_polygon_area * (land_usage_percent_poly / 100)
 
         def compute_offset_for_target_area(polygon, target_percent, tolerance=0.01):
@@ -359,13 +348,12 @@ else:
             st.warning("⚠️ Geometry error in buffering usable area. Using full land.")
 
     elif use_manual_area_poly:
-        effective_land_area_poly = st.number_input("Effective Land Area (m²) for Polygon", value=int(land_polygon_area * 0.9), key="poly_manual_val")
+        effective_land_area_poly = st.number_input("Effective Land Area (m²)", value=int(land_polygon_area * 0.9))
 
     st.subheader("🗺️ Land and Usable Area Visualization")
     fig_poly, ax_poly = plt.subplots()
     land_array = np.array(original_polygon.exterior.coords)
     usable_array = np.array(usable_polygon.exterior.coords)
-
     ax_poly.plot(land_array[:,0], land_array[:,1], 'o-', label="Land Boundary")
     ax_poly.fill(land_array[:,0], land_array[:,1], alpha=0.2)
     ax_poly.plot(usable_array[:,0], usable_array[:,1], 'o-', color='green', label="Usable Area")
@@ -380,14 +368,15 @@ else:
     st.write(f"✅ Usable Area: {usable_polygon.area:.1f} m²")
 
     st.subheader("📊 Panel Layout Inside Usable Area")
-
     panel_width = st.number_input("Panel Width (m)", value=1.0, step=0.1)
     panel_height = st.number_input("Panel Height (m)", value=2.0, step=0.1)
     panel_gap = st.number_input("Gap Between Panels (m)", value=0.5, step=0.1)
     row_spacing = st.number_input("Row Spacing (m)", value=3.0, step=0.1)
 
     panel_spacing_width = panel_width + panel_gap
-     usable_minx, usable_miny, usable_maxx, usable_maxy = usable_polygon.bounds
+
+    # محاسبه تعداد ردیف‌ها و ستون‌ها
+    usable_minx, usable_miny, usable_maxx, usable_maxy = usable_polygon.bounds
     total_height = usable_maxy - usable_miny
     total_width = usable_maxx - usable_minx
 
@@ -412,27 +401,11 @@ else:
                 ax_layout.add_patch(patches.Rectangle((x, y), panel_width, panel_height, edgecolor='black', facecolor='blue', alpha=0.6))
                 panel_count += 1
 
+    ax_layout.set_xlabel("X (m)")
+    ax_layout.set_ylabel("Y (m)")
     ax_layout.set_title("Perfect Grid Layout Based on Calculated Rows")
     ax_layout.set_aspect('equal')
+    ax_layout.legend()
     st.pyplot(fig_layout)
-
-    st.success(f"✅ Panels Placed: {panel_count}")
-
-    area_per_panel = row_spacing * panel_spacing_width
-    max_panels = int(effective_land_area_poly / area_per_panel)
-
-    bounds = usable_polygon.bounds
-    center_x = (bounds[0] + bounds[2]) / 2
-    center_y = (bounds[1] + bounds[3]) / 2
-
-    fig_layout, ax_layout = plt.subplots()
-    ax_layout.plot(usable_array[:,0], usable_array[:,1], 'o-', label="Usable Area")
-    ax_layout.fill(usable_array[:,0], usable_array[:,1], alpha=0.1, color='green')
-
-    panel_count = 0
-    row_idx = 0
-
-    usable_minx, usable_miny, usable_maxx, usable_maxy = usable_polygon.bounds
-
 
     st.success(f"✅ Panels Placed: {panel_count}")
