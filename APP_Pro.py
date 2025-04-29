@@ -367,10 +367,13 @@ else:
     st.write(f"✅ Usable Area: {usable_polygon.area:.1f} m²")
 
     st.subheader("📊 Panel Layout Inside Usable Area")
-    panel_width = st.number_input("Panel Width (m)", value=1.0, step=0.1, key="panel_width_poly")
-    panel_height = st.number_input("Panel Height (m)", value=2.0, step=0.1, key="panel_height_poly")
-    panel_gap = st.number_input("Gap Between Panels (m)", value=0.5, step=0.1, key="panel_gap_poly")
-    row_spacing = st.number_input("Row Spacing (m)", value=3.0, step=0.1, key="row_spacing_poly")
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        panel_width = st.number_input("Panel Width (m)", value=1.0, step=0.1, key="panel_width_poly")
+        panel_gap = st.number_input("Gap Between Panels (m)", value=0.5, step=0.1, key="panel_gap_poly")
+    with col_p2:
+        panel_height = st.number_input("Panel Height (m)", value=2.0, step=0.1, key="panel_height_poly")
+        row_spacing = st.number_input("Row Spacing (m)", value=3.0, step=0.1, key="row_spacing_poly")
 
     panel_spacing_width = panel_width + panel_gap
 
@@ -405,8 +408,17 @@ else:
     ax_layout.set_aspect('equal')
     ax_layout.legend()
     st.pyplot(fig_layout)
-    
+
     st.success(f"✅ Panels Placed: {panel_count}")
 
+    st.subheader("📊 Output Summary for This Polygon")
+    performance_ratio = st.slider("Performance Ratio (0.5 to 0.95)", min_value=0.5, max_value=0.95, value=0.82, step=0.01, key="pr_poly")
+    panel_capacity_kw = st.number_input("Panel Capacity (kW per panel)", value=0.55, step=0.01, key="p_kw_poly")
+    irradiance = st.number_input("Annual Irradiance (kWh/m²/year)", value=2000, step=10, key="irr_poly")
 
+    estimated_energy_per_panel = irradiance * panel_capacity_kw * performance_ratio
+    total_energy = panel_count * estimated_energy_per_panel
+    total_capacity = panel_count * panel_capacity_kw
 
+    st.write(f"⚡ System Capacity: {total_capacity:.2f} kW")
+    st.write(f"⚡ Estimated Annual Energy: {total_energy:,.0f} kWh")
