@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 from shapely.geometry import  Polygon, Point, box
-
+from shapely.errors import TopologicalError
 
 # ----------------------------- CONFIGURATION -----------------------------
 st.set_page_config(page_title="Solar Farm Estimator", layout="centered")
@@ -262,8 +262,7 @@ def polygon_area(coords):
     y = np.array([p[1] for p in coords])
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
-from shapely.errors import TopologicalError
-import math
+
 
 st.header("🌍 Define Land by Polygon Coordinates (Geographic)")
 
