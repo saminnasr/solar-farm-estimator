@@ -411,3 +411,4 @@ else:
     st.success(f"✅ Panels Placed: {panel_count}")
 
 
+
