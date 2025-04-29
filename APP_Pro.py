@@ -309,8 +309,8 @@ else:
     st.write(f"📐 Land Area: {land_polygon_area:.1f} m²")
 
     st.subheader("🏗️ Land Usable Area Settings (Polygon Based)")
-    use_percentage_poly = st.checkbox("Use Usable Land Percentage for Polygon (%)", value=True)
-    use_manual_area_poly = st.checkbox("Or Enter Usable Land Area Directly (m²)")
+    use_percentage_poly = st.checkbox("Use Usable Land Percentage for Polygon (%)", value=True, key="use_percentage_poly")
+    use_manual_area_poly = st.checkbox("Or Enter Usable Land Area Directly (m²)", key="use_manual_area_poly_checkbox")
 
     effective_land_area_poly = land_polygon_area
     usable_polygon = original_polygon
