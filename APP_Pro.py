@@ -402,28 +402,30 @@ else:
     row_idx = 0
 
     while True:
-        y_offset = (row_idx // 2) * row_spacing * (-1 if row_idx % 2 else 1)
+        y_offset = (row_idx // 2) * row_spacing * (-1 if row_idx % 2 == 0 else 1)
         current_y = center_y + y_offset
+
+        if current_y + panel_height > bounds[3] or current_y < bounds[1]:
+            break
 
         col_idx = 0
         while True:
-            x_offset = (col_idx // 2) * panel_spacing_width * (-1 if col_idx % 2 else 1)
+            x_offset = (col_idx // 2) * panel_spacing_width * (-1 if col_idx % 2 == 0 else 1)
             current_x = center_x + x_offset
+
+            if current_x + panel_width > bounds[2] or current_x < bounds[0]:
+                break
 
             panel = box(current_x, current_y, current_x + panel_width, current_y + panel_height)
             if usable_polygon.contains(panel):
                 ax_layout.add_patch(patches.Rectangle((current_x, current_y), panel_width, panel_height, edgecolor='black', facecolor='blue', alpha=0.6))
                 panel_count += 1
-            else:
-                break
-
             if panel_count >= max_panels:
                 break
             col_idx += 1
 
         if panel_count >= max_panels:
             break
-
         row_idx += 1
 
     ax_layout.set_title("Centered Symmetric Panel Layout")
@@ -431,4 +433,3 @@ else:
     st.pyplot(fig_layout)
 
     st.success(f"✅ Panels Placed: {panel_count}")
-
